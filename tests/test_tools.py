@@ -52,7 +52,7 @@ class TestTools(unittest.TestCase):
             pass
 
         with self.assertRaises(TypeError):
-            IncompleteTool()
+            IncompleteTool()  # type: ignore
 
         tool = FileTool()
         schema = tool.to_schema()
