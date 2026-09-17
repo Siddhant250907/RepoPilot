@@ -8,19 +8,39 @@ Responsibilities:
 - Sanitize shell commands against disallowed shell operations.
 """
 
-import os
 from pathlib import Path
+from typing import Union
 
 
-def is_safe_path(target_path: str, base_directory: str) -> bool:
+def is_safe_path(target_path: Union[str, Path], base_directory: Union[str, Path]) -> bool:
     """
     Verify target_path resolves strictly within base_directory.
-
-    TODO: Person 2 will implement strict path containment validation.
+    Anchors relative paths to base_directory, resolves symlinks,
+    and checks that the resolved target is contained within the base directory.
     """
     try:
-        resolved_base = Path(base_directory).resolve()
-        resolved_target = Path(target_path).resolve()
-        return resolved_base in resolved_target.parents or resolved_base == resolved_target
+        base = Path(base_directory).resolve()
+        target = Path(target_path)
+        if not target.is_absolute():
+            target = base / target
+        resolved_target = target.resolve()
+
+        return resolved_target == base or base in resolved_target.parents
     except Exception:
         return False
+
+
+def resolve_safe_path(target_path: Union[str, Path], base_directory: Union[str, Path]) -> Path:
+    """
+    Resolve target_path within base_directory and verify containment.
+    Raises PermissionError if the target resolves outside base_directory.
+    """
+    base = Path(base_directory).resolve()
+    target = Path(target_path)
+    if not target.is_absolute():
+        target = base / target
+    resolved_target = target.resolve()
+
+    if not (resolved_target == base or base in resolved_target.parents):
+        raise PermissionError(f"Access denied: '{target_path}' resolves outside workspace '{base}'")
+    return resolved_target
