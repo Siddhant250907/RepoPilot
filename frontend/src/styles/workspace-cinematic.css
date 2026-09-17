@@ -1,0 +1,1050 @@
+/* ==========================================================================
+   RepoPilot Workspace — Cinematic Warm Palette Override
+   
+   Strips the old blue/indigo/purple SaaS aesthetic from ALL workspace 
+   components and replaces it with the warm cinematic film palette:
+   
+   Canvas:    #080604 / #0D0A07 / #15100B
+   Surface:   #1E1610 / #24180E / #281D14
+   Accent:    #C69255 (warm gold) / #E0A35C / #8A582C
+   Cream:     #F2E5B8 / #E9D99F / #FFF1C7
+   Muted:     #8D8272 / #5E564B / #A39886
+   Border:    rgba(141, 130, 114, ...) warm gray hairlines
+   
+   NO blue, NO indigo, NO purple, NO neon.
+   ========================================================================== */
+
+/* ==========================================================================
+   1. WORKSPACE LAYOUT & ATMOSPHERE
+   ========================================================================== */
+
+.workspace-layout {
+  background-color: #080604;
+  background-image: 
+    radial-gradient(circle at 50% 20%, rgba(112, 71, 34, 0.12) 0%, transparent 60%),
+    radial-gradient(circle at 85% 60%, rgba(58, 37, 23, 0.08) 0%, transparent 50%);
+}
+
+/* ==========================================================================
+   2. SIDEBAR (Left Panel)
+   ========================================================================== */
+
+.app-sidebar {
+  background: #0A0805;
+  border-right-color: rgba(141, 130, 114, 0.18);
+}
+
+.sidebar-header {
+  border-bottom-color: rgba(141, 130, 114, 0.18);
+}
+
+/* Brand icon: warm amber gradient instead of indigo */
+.brand-logo-icon {
+  background: linear-gradient(135deg, #704722 0%, #C69255 100%);
+  box-shadow: 0 0 12px -2px rgba(198, 146, 85, 0.4);
+}
+
+.logo-pulse-ring {
+  border-color: rgba(198, 146, 85, 0.35);
+}
+
+.brand-name {
+  color: var(--rp-text-cream);
+  font-family: var(--rp-font-condensed);
+  letter-spacing: 0.02em;
+}
+
+.brand-badge-pill {
+  background: rgba(198, 146, 85, 0.15);
+  color: #E9D99F;
+  border: 1px solid rgba(198, 146, 85, 0.3);
+}
+
+/* New Task button: warm CTA */
+.new-task-btn {
+  background: var(--rp-text-cream);
+  color: #080604;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.new-task-btn:hover {
+  background: #FFF1C7;
+  filter: none;
+  box-shadow: 0 6px 24px rgba(198, 146, 85, 0.25);
+}
+
+/* Navigation buttons */
+.nav-btn {
+  color: var(--rp-text-muted);
+}
+
+.nav-btn:hover {
+  color: var(--rp-text-cream);
+  background: rgba(141, 130, 114, 0.08);
+}
+
+.nav-btn.active {
+  color: var(--rp-text-cream);
+  background: rgba(198, 146, 85, 0.12);
+  border-left: 2px solid var(--rp-warm-gold);
+}
+
+.nav-counter-badge {
+  background: rgba(198, 146, 85, 0.15);
+  color: var(--rp-text-cream-dark);
+}
+
+/* Sidebar status box */
+.sidebar-status-box {
+  background: rgba(21, 16, 11, 0.6);
+  border-color: rgba(141, 130, 114, 0.18);
+}
+
+.status-box-title {
+  color: var(--rp-text-cream);
+}
+
+/* User dropdown */
+.user-dropdown-menu {
+  background: #15100B;
+  border-color: rgba(141, 130, 114, 0.25);
+}
+
+.user-profile-trigger:hover {
+  background: rgba(141, 130, 114, 0.08);
+}
+
+.menu-item:hover {
+  color: var(--rp-text-cream);
+  background: rgba(141, 130, 114, 0.08);
+}
+
+/* ==========================================================================
+   3. WORKSPACE NAVBAR (Top Bar)
+   ========================================================================== */
+
+.workspace-navbar {
+  background: rgba(8, 6, 4, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom-color: rgba(141, 130, 114, 0.18);
+}
+
+.breadcrumb-current {
+  color: var(--rp-text-cream);
+}
+
+.breadcrumb-root, .breadcrumb-separator {
+  color: var(--rp-text-muted);
+}
+
+/* Scenario selector */
+.scenario-select {
+  background: #15100B;
+  border-color: rgba(141, 130, 114, 0.25);
+  color: var(--rp-text-cream);
+}
+
+.scenario-select option {
+  background: #15100B;
+  color: var(--rp-text-cream);
+}
+
+/* Run Demo button: warm primary */
+.run-demo-action-btn {
+  background: var(--rp-text-cream);
+  color: #080604;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  font-weight: 700;
+}
+
+.run-demo-action-btn:hover {
+  background: #FFF1C7;
+  box-shadow: 0 6px 24px rgba(198, 146, 85, 0.25);
+}
+
+/* Reset & Login buttons */
+.reset-action-btn, .login-action-btn {
+  background: rgba(21, 16, 11, 0.6);
+  border-color: rgba(141, 130, 114, 0.25);
+  color: var(--rp-text-muted);
+}
+
+.reset-action-btn:hover, .login-action-btn:hover {
+  border-color: rgba(141, 130, 114, 0.4);
+  color: var(--rp-text-cream);
+  background: rgba(36, 24, 14, 0.6);
+}
+
+/* ==========================================================================
+   4. WORKSPACE MAIN STAGE
+   ========================================================================== */
+
+.workspace-main-stage {
+  background-color: #080604;
+  background-image: 
+    radial-gradient(circle at 30% 15%, rgba(112, 71, 34, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(58, 37, 23, 0.06) 0%, transparent 45%);
+}
+
+/* ==========================================================================
+   5. TASK COMPOSER
+   ========================================================================== */
+
+.greeting-headline {
+  color: var(--rp-text-cream);
+  font-family: var(--rp-font-condensed);
+  text-transform: uppercase;
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.greeting-subheadline {
+  color: var(--rp-text-muted);
+}
+
+/* Task composer card */
+.task-composer-card {
+  background: #0D0A07;
+  border-color: rgba(141, 130, 114, 0.22);
+  border-radius: var(--rp-radius-lg);
+}
+
+/* Quick actions bar */
+.quick-actions-bar {
+  background: rgba(8, 6, 4, 0.7);
+  border-bottom-color: rgba(141, 130, 114, 0.15);
+}
+
+.quick-action-pill {
+  background: rgba(21, 16, 11, 0.7);
+  border-color: rgba(141, 130, 114, 0.2);
+  color: var(--rp-text-muted);
+}
+
+.quick-action-pill:hover {
+  background: rgba(36, 24, 14, 0.8);
+  color: var(--rp-text-cream);
+  border-color: rgba(198, 146, 85, 0.3);
+}
+
+.quick-action-pill.active {
+  background: rgba(198, 146, 85, 0.15);
+  border-color: rgba(198, 146, 85, 0.4);
+  color: var(--rp-text-cream);
+}
+
+.action-pill-icon {
+  color: var(--rp-warm-gold);
+}
+
+/* Premium task textarea */
+.premium-task-textarea {
+  background: #0A0805;
+  border-color: rgba(141, 130, 114, 0.22);
+  color: var(--rp-text-cream);
+}
+
+.premium-task-textarea::placeholder {
+  color: var(--rp-text-subtle);
+}
+
+.premium-task-textarea:focus {
+  border-color: var(--rp-warm-gold);
+  box-shadow: 0 0 0 1px rgba(198, 146, 85, 0.35), 0 0 20px -6px rgba(198, 146, 85, 0.2);
+}
+
+/* Repository/Branch selectors */
+.selector-item {
+  background: rgba(13, 10, 7, 0.7);
+  border-color: rgba(141, 130, 114, 0.2);
+  color: var(--rp-text-muted);
+}
+
+.composer-select {
+  color: var(--rp-text-cream);
+}
+
+.composer-select option {
+  background: #15100B;
+  color: var(--rp-text-cream);
+}
+
+/* Analyze Repository button */
+.analyze-repository-btn {
+  background: var(--rp-text-cream);
+  color: #080604;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.analyze-repository-btn:hover:not(:disabled) {
+  background: #FFF1C7;
+  filter: none;
+  box-shadow: 0 6px 24px rgba(198, 146, 85, 0.25);
+  transform: translateY(-1px);
+}
+
+.shortcut-badge {
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--rp-text-cream-dark);
+}
+
+/* ==========================================================================
+   6. RECENT RUNS TABLE
+   ========================================================================== */
+
+.runs-header-icon {
+  color: var(--rp-warm-gold);
+}
+
+.recent-runs-title {
+  color: var(--rp-text-cream);
+}
+
+.recent-runs-table {
+  background: #0D0A07;
+  border-color: rgba(141, 130, 114, 0.18);
+}
+
+.runs-table-head {
+  background: rgba(8, 6, 4, 0.7);
+  border-bottom-color: rgba(141, 130, 114, 0.15);
+  color: var(--rp-text-subtle);
+}
+
+.run-table-row {
+  border-bottom-color: rgba(141, 130, 114, 0.1);
+}
+
+.run-table-row:hover {
+  background: rgba(36, 24, 14, 0.3);
+}
+
+.run-table-row.selected {
+  background: rgba(198, 146, 85, 0.08);
+  border-left-color: var(--rp-warm-gold);
+}
+
+.run-title-text {
+  color: var(--rp-text-cream);
+}
+
+.branch-sep {
+  color: var(--rp-warm-gold);
+}
+
+.repo-badge-mono {
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--rp-text-secondary);
+}
+
+/* Replay button */
+.row-replay-action-btn {
+  color: var(--rp-text-cream-dark);
+  background: rgba(198, 146, 85, 0.1);
+  border-color: rgba(198, 146, 85, 0.25);
+}
+
+.row-replay-action-btn:hover {
+  background: rgba(198, 146, 85, 0.22);
+  color: var(--rp-text-cream);
+  border-color: rgba(198, 146, 85, 0.5);
+}
+
+/* ==========================================================================
+   7. EXECUTION VIEW
+   ========================================================================== */
+
+.execution-header-card {
+  background: #0D0A07;
+  border-color: rgba(141, 130, 114, 0.22);
+}
+
+.exec-task-badge {
+  color: var(--rp-warm-gold);
+}
+
+.exec-objective-title {
+  color: var(--rp-text-cream);
+}
+
+/* Back to composer */
+.back-to-composer-btn {
+  background: rgba(21, 16, 11, 0.6);
+  border-color: rgba(141, 130, 114, 0.22);
+  color: var(--rp-text-muted);
+}
+
+.back-to-composer-btn:hover {
+  color: var(--rp-text-cream);
+  border-color: rgba(141, 130, 114, 0.4);
+}
+
+/* Rerun button */
+.exec-action-btn.rerun-btn {
+  background: rgba(198, 146, 85, 0.15);
+  border-color: rgba(198, 146, 85, 0.35);
+  color: var(--rp-text-cream-dark);
+}
+
+.exec-action-btn.rerun-btn:hover {
+  background: rgba(198, 146, 85, 0.25);
+  color: var(--rp-text-cream);
+}
+
+.exec-action-btn.reset-btn {
+  background: rgba(21, 16, 11, 0.6);
+  border: 1px solid rgba(141, 130, 114, 0.22);
+  color: var(--rp-text-muted);
+}
+
+.exec-action-btn.reset-btn:hover {
+  border-color: rgba(141, 130, 114, 0.4);
+  color: var(--rp-text-cream);
+}
+
+/* Top status badge */
+.exec-top-status-badge {
+  border-radius: var(--rp-radius-full);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.exec-top-status-badge.status-thinking {
+  background: rgba(198, 146, 85, 0.15);
+  border: 1px solid rgba(198, 146, 85, 0.35);
+  color: #E9D99F;
+}
+
+.exec-top-status-badge.status-using-tool {
+  background: rgba(138, 88, 44, 0.2);
+  border: 1px solid rgba(198, 146, 85, 0.35);
+  color: #E9D99F;
+}
+
+.exec-top-status-badge.status-observing {
+  background: rgba(198, 146, 85, 0.12);
+  border: 1px solid rgba(198, 146, 85, 0.3);
+  color: var(--rp-text-cream);
+}
+
+/* Keep recovery/completed/error semantic colors since they are meaningful */
+
+/* ==========================================================================
+   8. NINE-STEP PIPELINE TRACKER
+   ========================================================================== */
+
+.autonomous-nine-step-tracker {
+  background: #0D0A07;
+  border: 1px solid rgba(141, 130, 114, 0.18);
+  border-radius: var(--rp-radius-lg);
+  padding: var(--rp-space-4) var(--rp-space-5);
+}
+
+.pipeline-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--rp-space-3);
+  flex-wrap: wrap;
+  gap: var(--rp-space-2);
+}
+
+.pipeline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rp-warm-gold);
+  box-shadow: 0 0 6px rgba(198, 146, 85, 0.5);
+}
+
+.pipeline-title {
+  color: var(--rp-text-cream);
+}
+
+.pipeline-tag-badge {
+  font-family: var(--rp-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: rgba(198, 146, 85, 0.12);
+  color: var(--rp-text-cream-dark);
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+.pipeline-subtitle {
+  font-family: var(--rp-font-mono);
+  font-size: 10px;
+  color: var(--rp-text-subtle);
+  letter-spacing: 0.02em;
+}
+
+.pipeline-step-node {
+  background: rgba(21, 16, 11, 0.5);
+  border: 1px solid rgba(141, 130, 114, 0.15);
+  border-radius: var(--rp-radius-sm);
+  padding: var(--rp-space-2) var(--rp-space-3);
+  min-width: 90px;
+  transition: all var(--rp-transition-fast);
+}
+
+.pipeline-step-node .node-step-num {
+  font-family: var(--rp-font-mono);
+  font-size: 9px;
+  color: var(--rp-text-subtle);
+}
+
+.pipeline-step-node .node-step-text {
+  font-family: var(--rp-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--rp-text-muted);
+  letter-spacing: 0.03em;
+}
+
+/* Completed state */
+.pipeline-step-node.state-completed .node-step-text {
+  color: var(--rp-text-cream);
+}
+
+.pipeline-step-node.state-completed {
+  border-color: rgba(198, 146, 85, 0.35);
+  background: rgba(198, 146, 85, 0.08);
+}
+
+/* Active state */
+.pipeline-step-node.state-active {
+  border-color: rgba(198, 146, 85, 0.5);
+  background: rgba(198, 146, 85, 0.15);
+  box-shadow: 0 0 12px -2px rgba(198, 146, 85, 0.3);
+}
+
+.pipeline-step-node.state-active .node-step-text {
+  color: var(--rp-text-cream);
+}
+
+.pipeline-connector-line {
+  color: var(--rp-text-subtle);
+}
+
+.pipeline-connector-line.filled {
+  color: var(--rp-warm-gold);
+}
+
+/* ==========================================================================
+   9. FAILURE & RECOVERY CALLOUT
+   ========================================================================== */
+
+.failure-recovery-callout-card {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.08) 0%, rgba(13, 10, 7, 0.9) 100%);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  border-radius: var(--rp-radius-lg);
+  padding: var(--rp-space-4) var(--rp-space-5);
+}
+
+.callout-concept-tag {
+  font-family: var(--rp-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: rgba(217, 119, 6, 0.15);
+  color: #FCD34D;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+/* ==========================================================================
+   10. ACTIVE WORKING MEMORY GRID
+   ========================================================================== */
+
+.active-working-memory-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--rp-space-3);
+}
+
+.memory-card {
+  background: #0D0A07;
+  border: 1px solid rgba(141, 130, 114, 0.18);
+  border-radius: var(--rp-radius-md);
+  padding: var(--rp-space-3);
+}
+
+.memory-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--rp-space-2);
+}
+
+.memory-card-header .card-title {
+  font-family: var(--rp-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--rp-text-muted);
+}
+
+.memory-card-content {
+  font-size: 12px;
+  color: var(--rp-text-secondary);
+  line-height: 1.5;
+}
+
+/* Card icon colors: warm tones replacing blue/indigo/purple */
+.memory-card-header .card-icon.indigo { color: var(--rp-warm-gold); }
+.memory-card-header .card-icon.purple { color: #E0A35C; }
+.memory-card-header .card-icon.blue { color: var(--rp-text-cream-dark); }
+
+/* ==========================================================================
+   11. TIMELINE TRACE NODES
+   ========================================================================== */
+
+/* Plan node marker: warm gold instead of indigo */
+.event-plan .node-marker {
+  border-color: rgba(198, 146, 85, 0.5);
+  color: var(--rp-warm-gold);
+}
+
+/* Tool call node marker: warm amber instead of purple */
+.event-tool-call .node-marker {
+  border-color: rgba(224, 163, 92, 0.5);
+  color: #E0A35C;
+}
+
+/* Observation node marker: warm cream instead of blue */
+.event-observation .node-marker {
+  border-color: rgba(233, 217, 159, 0.35);
+  color: var(--rp-text-cream-dark);
+}
+
+/* Plan content card */
+.event-plan .node-content-card {
+  border-color: rgba(198, 146, 85, 0.3);
+  background: linear-gradient(180deg, rgba(112, 71, 34, 0.12) 0%, #0D0A07 100%);
+}
+
+/* Tool call content card */
+.event-tool-call .node-content-card {
+  border-color: rgba(198, 146, 85, 0.25);
+  background: linear-gradient(180deg, rgba(90, 57, 32, 0.15) 0%, #0D0A07 100%);
+}
+
+/* Observation content card */
+.event-observation .node-content-card {
+  border-color: rgba(141, 130, 114, 0.22);
+  background: rgba(13, 10, 7, 0.9);
+}
+
+/* Type badges */
+.type-plan {
+  background: rgba(198, 146, 85, 0.15);
+  color: var(--rp-text-cream-dark);
+}
+
+.type-tool_call {
+  background: rgba(224, 163, 92, 0.15);
+  color: #E0A35C;
+}
+
+.type-tool_result, .type-observation {
+  background: rgba(141, 130, 114, 0.12);
+  color: var(--rp-text-secondary);
+}
+
+/* Plan subgoals */
+.plan-subgoals {
+  background: rgba(8, 6, 4, 0.5);
+  border-color: rgba(198, 146, 85, 0.2);
+}
+
+.subgoals-label {
+  color: var(--rp-text-cream-dark);
+}
+
+.subgoal-bullet {
+  background: var(--rp-warm-gold);
+}
+
+/* Tool call card */
+.tool-call-card {
+  background: rgba(13, 10, 7, 0.7);
+  border-color: rgba(198, 146, 85, 0.22);
+}
+
+.tool-call-header {
+  background: rgba(112, 71, 34, 0.08);
+  border-bottom-color: rgba(198, 146, 85, 0.18);
+}
+
+.tool-icon-wrapper {
+  color: var(--rp-warm-gold);
+}
+
+.tool-status-pill.status-executing {
+  background: rgba(198, 146, 85, 0.2);
+  color: var(--rp-text-cream-dark);
+}
+
+/* Observation pre block */
+.observation-pre {
+  background: #0A0805;
+  border-color: rgba(141, 130, 114, 0.15);
+  color: var(--rp-text-secondary);
+}
+
+/* Trace empty state */
+.trace-empty-icon-wrap {
+  background: rgba(198, 146, 85, 0.1);
+  color: var(--rp-warm-gold);
+}
+
+.empty-title {
+  color: var(--rp-text-cream);
+}
+
+.trace-loop-diagram {
+  background: rgba(13, 10, 7, 0.7);
+  border-color: rgba(141, 130, 114, 0.18);
+}
+
+/* Hypothesis box */
+.hypothesis-box {
+  background: rgba(13, 10, 7, 0.7);
+  border-color: rgba(217, 119, 6, 0.25);
+}
+
+/* Pipeline step active states */
+.pipeline-step.active {
+  background: rgba(198, 146, 85, 0.15);
+  border-color: rgba(198, 146, 85, 0.4);
+  color: var(--rp-text-cream);
+}
+
+.cognitive-flow-pipeline {
+  background: rgba(13, 10, 7, 0.8);
+  border-color: rgba(141, 130, 114, 0.18);
+}
+
+/* ==========================================================================
+   12. RIGHT RUN DETAILS PANEL
+   ========================================================================== */
+
+.run-details-panel {
+  background: #0A0805;
+  border-left-color: rgba(141, 130, 114, 0.18);
+}
+
+.panel-header-block {
+  background: rgba(8, 6, 4, 0.92);
+  border-bottom-color: rgba(141, 130, 114, 0.18);
+}
+
+.panel-main-heading {
+  color: var(--rp-text-cream);
+  font-family: var(--rp-font-mono);
+}
+
+/* Status pulse dots */
+.run-status-pulse-dot.running {
+  background: var(--rp-warm-gold);
+  box-shadow: 0 0 8px rgba(198, 146, 85, 0.6);
+}
+
+/* Run state pills */
+.run-state-pill.running {
+  background: rgba(198, 146, 85, 0.15);
+  color: var(--rp-text-cream-dark);
+  border-color: rgba(198, 146, 85, 0.35);
+}
+
+/* Metric groups */
+.metric-detail-group {
+  background: rgba(13, 10, 7, 0.65);
+  border-color: rgba(141, 130, 114, 0.15);
+}
+
+.metric-detail-group.highlight-box {
+  border-color: rgba(198, 146, 85, 0.22);
+  background: linear-gradient(180deg, rgba(198, 146, 85, 0.06) 0%, rgba(13, 10, 7, 0.65) 100%);
+}
+
+/* Detail icons: warm tones */
+.detail-icon.accent-indigo { color: var(--rp-warm-gold); }
+.detail-icon.accent-blue { color: #E0A35C; }
+.detail-icon.accent-purple { color: var(--rp-warm-gold); }
+
+/* Detail value badges */
+.detail-val-badge {
+  color: var(--rp-text-cream-dark);
+  background: rgba(198, 146, 85, 0.12);
+}
+
+.detail-val-mono.duration-mono {
+  color: var(--rp-warm-gold);
+}
+
+.detail-val-pill.steps-pill {
+  background: rgba(198, 146, 85, 0.12);
+  color: var(--rp-text-cream-dark);
+}
+
+/* Tool icon */
+.tool-icon { color: var(--rp-warm-gold); }
+
+/* Empty state */
+.empty-ready-card {
+  background: linear-gradient(135deg, rgba(198, 146, 85, 0.08) 0%, rgba(13, 10, 7, 0.65) 100%);
+  border-color: rgba(198, 146, 85, 0.22);
+}
+
+.empty-card-top {
+  color: var(--rp-warm-gold);
+}
+
+.tool-item-icon-box { color: var(--rp-warm-gold); }
+
+.empty-help-box {
+  background: rgba(21, 16, 11, 0.4);
+  border-color: rgba(141, 130, 114, 0.2);
+}
+
+.empty-help-title {
+  color: var(--rp-text-cream-dark);
+}
+
+/* ==========================================================================
+   13. MODALS (Warm Cinematic Overlay)
+   ========================================================================== */
+
+.modal-backdrop {
+  background: rgba(8, 6, 4, 0.8);
+}
+
+.modal-dialog {
+  background: #15100B;
+  border-color: rgba(141, 130, 114, 0.22);
+  box-shadow: var(--rp-shadow-lg), 0 0 40px -8px rgba(198, 146, 85, 0.15);
+}
+
+.modal-header {
+  border-bottom-color: rgba(141, 130, 114, 0.18);
+}
+
+.brand-icon-wrap {
+  background: rgba(198, 146, 85, 0.15);
+  color: var(--rp-warm-gold);
+}
+
+.brand-icon-wrap.docs {
+  background: rgba(224, 163, 92, 0.15);
+  color: #E0A35C;
+}
+
+.brand-icon-wrap.settings {
+  background: rgba(141, 130, 114, 0.15);
+  color: var(--rp-text-cream-dark);
+}
+
+.modal-title {
+  color: var(--rp-text-cream);
+}
+
+/* ==========================================================================
+   14. SECTION ICON COLORS (Final Result)
+   ========================================================================== */
+
+.section-file-icon {
+  color: var(--rp-warm-gold);
+}
+
+.v-cmd-box {
+  color: var(--rp-warm-gold);
+}
+
+/* ==========================================================================
+   15. LOGIN SCREEN (Warm Cinematic Override)
+   ========================================================================== */
+
+.login-screen {
+  background-color: #080604;
+  background-image: 
+    radial-gradient(circle at 50% 30%, rgba(112, 71, 34, 0.15) 0%, transparent 55%),
+    radial-gradient(circle at 80% 60%, rgba(58, 37, 23, 0.1) 0%, transparent 45%);
+}
+
+.cinematic-login-card {
+  background: #0D0A07;
+  border-color: rgba(141, 130, 114, 0.25);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(58, 37, 23, 0.3);
+}
+
+.login-card-logo-wrap {
+  background: rgba(198, 146, 85, 0.12);
+  border-color: rgba(198, 146, 85, 0.3);
+  color: var(--rp-warm-gold);
+  box-shadow: 0 0 20px -2px rgba(198, 146, 85, 0.3);
+}
+
+.login-logo-glow-ring {
+  border-color: rgba(198, 146, 85, 0.35);
+}
+
+.login-title-heading {
+  font-family: var(--rp-font-condensed);
+  color: var(--rp-text-cream);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.demo-credentials-banner {
+  background: rgba(198, 146, 85, 0.1);
+  border-color: rgba(198, 146, 85, 0.25);
+}
+
+.demo-credentials-banner .banner-left {
+  color: var(--rp-text-cream-dark);
+}
+
+.demo-credentials-banner .key-icon {
+  color: var(--rp-warm-gold);
+}
+
+.quick-demo-fill-btn {
+  color: var(--rp-text-cream);
+  background: rgba(198, 146, 85, 0.2);
+  border: 1px solid rgba(198, 146, 85, 0.4);
+}
+
+.quick-demo-fill-btn:hover {
+  background: var(--rp-warm-gold);
+  color: #080604;
+}
+
+.login-field-label {
+  color: var(--rp-text-secondary);
+}
+
+.login-text-input:focus {
+  border-color: var(--rp-warm-gold);
+  box-shadow: 0 0 0 1px var(--rp-warm-gold), 0 0 12px -2px rgba(198, 146, 85, 0.3);
+}
+
+.login-submit-cta-btn {
+  background: var(--rp-text-cream);
+  color: #080604;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.login-submit-cta-btn:hover:not(:disabled) {
+  background: #FFF1C7;
+  filter: none;
+  box-shadow: 0 6px 24px rgba(198, 146, 85, 0.25);
+  transform: translateY(-1px);
+}
+
+.login-submit-btn {
+  background: var(--rp-text-cream);
+  color: #080604;
+}
+
+.login-submit-btn:hover {
+  background: #FFF1C7;
+}
+
+/* ==========================================================================
+   16. TOAST NOTIFICATIONS
+   ========================================================================== */
+
+.toast-notification {
+  background: #15100B;
+  border-color: rgba(141, 130, 114, 0.22);
+  color: var(--rp-text-cream);
+}
+
+/* ==========================================================================
+   17. SCROLLBAR (Warm tones)
+   ========================================================================== */
+
+::-webkit-scrollbar-track {
+  background: rgba(8, 6, 4, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(141, 130, 114, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(141, 130, 114, 0.5);
+}
+
+/* ==========================================================================
+   18. GENERAL WARM OVERRIDES
+   ========================================================================== */
+
+/* Remove any lingering indigo/blue background-image on html/body */
+html, body {
+  background-image: 
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(112, 71, 34, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 90% 25%, rgba(58, 37, 23, 0.04) 0%, transparent 40%);
+}
+
+/* Status badge overrides for workspace StatusBadge component */
+.status-badge {
+  font-family: var(--rp-font-mono);
+}
+
+/* Override remaining purple/indigo link-like accents */
+.error-message-box {
+  background: rgba(19, 7, 7, 0.8);
+}
+
+/* Ambient cleanup */
+.ambient-spotlight-pointer {
+  background: radial-gradient(
+    650px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(198, 146, 85, 0.05) 0%,
+    rgba(112, 71, 34, 0.02) 35%,
+    transparent 75%
+  );
+}
+
+.ambient-beam-top {
+  background: radial-gradient(
+    ellipse 70% 50% at 50% 20%, 
+    rgba(198, 146, 85, 0.12) 0%, 
+    rgba(112, 71, 34, 0.05) 50%, 
+    transparent 75%
+  );
+}
+
+.ambient-glow-indigo {
+  background: radial-gradient(circle, rgba(112, 71, 34, 0.07) 0%, transparent 65%);
+}
+
+.ambient-glow-violet {
+  background: radial-gradient(circle, rgba(58, 37, 23, 0.06) 0%, transparent 65%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1100px) {
+  .active-working-memory-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .active-working-memory-grid {
+    grid-template-columns: 1fr;
+  }
+}

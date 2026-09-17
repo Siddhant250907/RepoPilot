@@ -1,129 +1,140 @@
 /**
- * RepoPilot Design System — Tokens & Cinematic AI Developer Foundations
+ * RepoPilot Design System — Tokens & Cinematic Motion-Design Film Foundations
  *
  * Visual Direction:
- * - Near-black / deep navy background (#030509 / #060810)
- * - Subtle indigo / violet atmosphere (radial gradients, soft glow)
- * - Sophisticated typography (Plus Jakarta Sans editorial titles, Inter body, JetBrains Mono)
- * - Large editorial headings with optical kerning (-0.03em tracking)
- * - Thin subtle borders (hairline rgba(255, 255, 255, 0.07))
- * - Strong negative space (modular 4px/8px rhythm)
- * - Restrained gradients & subtle glow (no neon overload)
- * - Zero childish colors, zero generic dashboard cards, zero emojis
+ * - Almost-black background (#080604 / #0D0A07 / #15100B)
+ * - Warm brown & amber atmosphere (#3A2517 / #5A3920 / #704722 / #C69255)
+ * - Cream display typography (#F2E5B8 / #E9D99F / #FFF1C7)
+ * - Muted warm gray for secondary copy & structure (#8D8272 / #A39886 / #5E564B)
+ * - Ultra-heavy condensed display font (Anton, Bebas Neue, Oswald)
+ * - Large .cinematic-frame with thin warm-gray borders (rgba(141, 130, 114, 0.25))
+ * - Zero neon blue, zero purple SaaS gradients, zero generic SaaS cards
  */
 
 :root {
   /* ==========================================================================
-     1. BACKGROUNDS (Near-black / Deep Navy Palette)
+     1. BACKGROUNDS (Dark Filmic Warm Black Canvas)
      ========================================================================== */
-  --rp-bg-canvas: #030509;             /* Cinematic near-black app background */
-  --rp-bg-subtle: #060810;             /* Recessed subtle background */
-  --rp-bg-surface: #0a0e1a;            /* Primary card / panel surface */
-  --rp-bg-surface-hover: #0f1526;      /* Interactive hover surface */
-  --rp-bg-surface-active: #131b30;     /* Interactive active surface */
-  --rp-bg-surface-elevated: #0e1322;   /* Floating modals, dropdowns, popups */
-  --rp-bg-input: #050811;              /* Form inputs, textareas */
-  --rp-bg-code: #04060d;               /* Code blocks, AST trees, terminal */
-  --rp-bg-overlay: rgba(2, 4, 8, 0.82); /* Modal backdrop mask */
+  --rp-bg-canvas: #080604;             /* Cinematic near-black warm film canvas */
+  --rp-bg-subtle: #0D0A07;             /* Inset frame interior background */
+  --rp-bg-surface: #15100B;            /* Primary editorial surface */
+  --rp-bg-surface-hover: #1E1610;      /* Interactive hover surface */
+  --rp-bg-surface-active: #281D14;     /* Interactive active surface */
+  --rp-bg-surface-elevated: #1E1610;   /* Floating artifact cards & panels */
+  --rp-bg-input: #0D0A07;              /* Form inputs, textareas */
+  --rp-bg-code: #0A0805;               /* Terminal & code telemetry */
+  --rp-bg-overlay: rgba(8, 6, 4, 0.88); /* Modal & lightbox backdrop mask */
 
   /* ==========================================================================
-     2. SURFACES (Deep Matte Developer Tooling)
+     2. WARM BROWN & AMBER PALETTE
      ========================================================================== */
-  --rp-surface-base: #0a0e1a;
-  --rp-surface-muted: #070a13;
-  --rp-surface-subtle: #0d1222;
-  --rp-surface-highlight: rgba(255, 255, 255, 0.03);
-  --rp-surface-border: rgba(255, 255, 255, 0.08);
+  --rp-warm-brown-dark: #24180E;
+  --rp-warm-brown: #3A2517;
+  --rp-warm-brown-mid: #5A3920;
+  --rp-warm-brown-light: #704722;
+  --rp-warm-brown-amber: #8A582C;
+  --rp-warm-gold: #C69255;
+  --rp-warm-gold-light: #E0A35C;
 
   /* ==========================================================================
-     3. TEXT & MUTED TEXT (Sophisticated Typography)
+     3. CREAM & WARM GRAY TYPOGRAPHY
      ========================================================================== */
-  --rp-text-primary: #f8fafc;          /* High-contrast crisp white */
-  --rp-text-secondary: #94a3b8;        /* Balanced slate */
-  --rp-text-muted: #64748b;            /* Restrained metadata and placeholders */
-  --rp-text-subtle: #475569;           /* Secondary captions and timestamps */
-  --rp-text-disabled: #334155;         /* Disabled text states */
-  --rp-text-inverse: #020408;          /* Inverted dark text */
-  --rp-text-accent: #a5b4fc;           /* Subtle indigo highlight text */
+  --rp-text-cream-light: #FFF1C7;
+  --rp-text-cream: #F2E5B8;            /* Primary display & headline cream */
+  --rp-text-cream-dark: #E9D99F;       /* Secondary cream headline text */
+  --rp-text-primary: #F2E5B8;          /* High-contrast cream text */
+  --rp-text-secondary: #C4B79A;        /* Balanced warm beige */
+  --rp-text-muted: #8D8272;            /* Muted warm gray metadata & labels */
+  --rp-text-subtle: #5E564B;           /* Darker captions, dividers */
+  --rp-text-disabled: #3E3831;         /* Disabled state */
+  --rp-text-inverse: #080604;          /* Inverted dark text on cream buttons */
+  --rp-text-accent: #E9D99F;           /* Subtle warm highlight text */
 
   /* ==========================================================================
-     4. ACCENT (Indigo / Violet Atmosphere)
+     4. ACCENT (Warm Amber / Terracotta — NO PURPLE / NO NEON BLUE)
      ========================================================================== */
-  --rp-primary: #6366f1;               /* Core Indigo */
-  --rp-primary-hover: #4f46e5;
-  --rp-primary-active: #4338ca;
-  --rp-primary-subtle: rgba(99, 102, 241, 0.10);
-  --rp-primary-border: rgba(99, 102, 241, 0.28);
-  --rp-primary-glow: rgba(99, 102, 241, 0.18);
+  --rp-primary: #704722;               /* Core warm brown amber */
+  --rp-primary-hover: #8A582C;
+  --rp-primary-active: #5A3920;
+  --rp-primary-subtle: rgba(112, 71, 34, 0.18);
+  --rp-primary-border: rgba(198, 146, 85, 0.35);
+  --rp-primary-glow: rgba(198, 146, 85, 0.22);
 
-  --rp-purple: #8b5cf6;                /* Subtle Violet */
-  --rp-purple-hover: #7c3aed;
-  --rp-purple-active: #6d28d9;
-  --rp-purple-subtle: rgba(139, 92, 246, 0.10);
-  --rp-purple-border: rgba(139, 92, 246, 0.28);
-  --rp-purple-glow: rgba(139, 92, 246, 0.18);
+  --rp-accent-warm: #C69255;
+  --rp-accent-warm-hover: #E0A35C;
+  --rp-accent-warm-subtle: rgba(198, 146, 85, 0.12);
+  --rp-accent-warm-border: rgba(198, 146, 85, 0.4);
+
+  /* Legacy brand variable bridges mapped to warm palette */
+  --rp-purple: #8A582C;
+  --rp-purple-hover: #A06734;
+  --rp-purple-active: #704722;
+  --rp-purple-subtle: rgba(138, 88, 44, 0.18);
+  --rp-purple-border: rgba(198, 146, 85, 0.35);
+  --rp-purple-glow: rgba(198, 146, 85, 0.18);
 
   /* ==========================================================================
-     5. SEMANTIC STATES (Success, Warning, Error, Info)
+     5. SEMANTIC STATES (Restrained Warm Film Calibration)
      ========================================================================== */
   /* Success (Verified Resolution / Green Test Assertions) */
-  --rp-success: #10b981;
+  --rp-success: #10B981;
   --rp-success-hover: #059669;
-  --rp-success-subtle: rgba(16, 185, 129, 0.10);
-  --rp-success-border: rgba(16, 185, 129, 0.25);
-  --rp-success-text: #34d399;
-  --rp-success-glow: rgba(16, 185, 129, 0.18);
+  --rp-success-subtle: rgba(16, 185, 129, 0.12);
+  --rp-success-border: rgba(16, 185, 129, 0.3);
+  --rp-success-text: #6EE7B7;
+  --rp-success-glow: rgba(16, 185, 129, 0.2);
 
   /* Warning (Autonomous Reflection / Self-Correction Recovery) */
-  --rp-warning: #f59e0b;
-  --rp-warning-hover: #d97706;
-  --rp-warning-subtle: rgba(245, 158, 11, 0.10);
-  --rp-warning-border: rgba(245, 158, 11, 0.25);
-  --rp-warning-text: #fbbf24;
-  --rp-warning-glow: rgba(245, 158, 11, 0.18);
+  --rp-warning: #D97706;
+  --rp-warning-hover: #B45309;
+  --rp-warning-subtle: rgba(217, 119, 6, 0.15);
+  --rp-warning-border: rgba(217, 119, 6, 0.35);
+  --rp-warning-text: #FCD34D;
+  --rp-warning-glow: rgba(217, 119, 6, 0.25);
 
-  /* Error (Tool Fault / Exception Stack) */
-  --rp-error: #ef4444;
-  --rp-error-hover: #dc2626;
-  --rp-error-subtle: rgba(239, 68, 68, 0.10);
-  --rp-error-border: rgba(239, 68, 68, 0.25);
-  --rp-error-text: #f87171;
-  --rp-error-glow: rgba(239, 68, 68, 0.18);
+  /* Error (Tool Fault / Test Failure Discrepancy) */
+  --rp-error: #DC2626;
+  --rp-error-hover: #B91C1C;
+  --rp-error-subtle: rgba(220, 38, 38, 0.15);
+  --rp-error-border: rgba(220, 38, 38, 0.38);
+  --rp-error-text: #FCA5A5;
+  --rp-error-glow: rgba(220, 38, 38, 0.25);
 
-  /* Info (Observation / AST Diagnostics) */
-  --rp-info: #0ea5e9;
-  --rp-info-hover: #0284c7;
-  --rp-info-subtle: rgba(14, 165, 233, 0.10);
-  --rp-info-border: rgba(14, 165, 233, 0.25);
-  --rp-info-text: #38bdf8;
-  --rp-info-glow: rgba(14, 165, 233, 0.18);
+  /* Info (Observation / Telemetry / Diagnostics) */
+  --rp-info: #C69255;
+  --rp-info-hover: #E0A35C;
+  --rp-info-subtle: rgba(198, 146, 85, 0.14);
+  --rp-info-border: rgba(198, 146, 85, 0.32);
+  --rp-info-text: #E9D99F;
+  --rp-info-glow: rgba(198, 146, 85, 0.2);
 
   /* ==========================================================================
-     6. BORDERS (Thin Subtle Hairlines)
+     6. BORDERS (Thin Warm-Gray Hairlines)
      ========================================================================== */
-  --rp-border-hairline: rgba(255, 255, 255, 0.04); /* Ultra-thin separator */
-  --rp-border-subtle: rgba(255, 255, 255, 0.07);   /* Divider lines */
-  --rp-border-default: rgba(255, 255, 255, 0.10);  /* Standard structural border */
-  --rp-border-hover: rgba(255, 255, 255, 0.18);    /* Interactive hover */
-  --rp-border-focus: #6366f1;                      /* Form active focus ring */
-  --rp-border-accent: rgba(99, 102, 241, 0.32);   /* Indigo highlight outline */
+  --rp-border-hairline: rgba(141, 130, 114, 0.12); /* Ultra-thin frame separator */
+  --rp-border-subtle: rgba(141, 130, 114, 0.22);   /* Thin warm frame border */
+  --rp-border-default: rgba(141, 130, 114, 0.32);  /* Standard structural border */
+  --rp-border-hover: rgba(242, 229, 184, 0.35);    /* Cream highlighted border */
+  --rp-border-focus: #C69255;                      /* Warm gold active ring */
+  --rp-border-accent: rgba(198, 146, 85, 0.45);   /* Warm gold highlight border */
 
   /* ==========================================================================
-     7. SHADOWS & SUBTLE GLOW (Restrained, Depth Without Glare)
+     7. SHADOWS & WARM GLOW (Filmic Depth)
      ========================================================================== */
-  --rp-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --rp-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.5);
-  --rp-shadow-md: 0 6px 20px -3px rgba(0, 0, 0, 0.6);
-  --rp-shadow-lg: 0 16px 40px -6px rgba(0, 0, 0, 0.75);
+  --rp-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --rp-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.7);
+  --rp-shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.85);
+  --rp-shadow-lg: 0 20px 50px -8px rgba(0, 0, 0, 0.95);
+  --rp-shadow-frame: 0 30px 100px -20px rgba(0, 0, 0, 0.9), 0 0 80px -20px rgba(58, 37, 23, 0.4);
 
-  --rp-shadow-glow-primary: 0 0 24px -4px var(--rp-primary-glow);
-  --rp-shadow-glow-purple: 0 0 24px -4px var(--rp-purple-glow);
-  --rp-shadow-glow-error: 0 0 20px -4px var(--rp-error-glow);
-  --rp-shadow-glow-success: 0 0 20px -4px var(--rp-success-glow);
-  --rp-shadow-glow-warning: 0 0 20px -4px var(--rp-warning-glow);
+  --rp-shadow-glow-primary: 0 0 30px -4px var(--rp-primary-glow);
+  --rp-shadow-glow-purple: 0 0 30px -4px var(--rp-primary-glow);
+  --rp-shadow-glow-error: 0 0 24px -4px var(--rp-error-glow);
+  --rp-shadow-glow-success: 0 0 24px -4px var(--rp-success-glow);
+  --rp-shadow-glow-warning: 0 0 24px -4px var(--rp-warning-glow);
 
   /* ==========================================================================
-     8. SPACING (Modular 4px/8px Rhythm with Strong Negative Space)
+     8. SPACING (Modular 4px/8px Rhythm with Generous Editorial Space)
      ========================================================================== */
   --rp-space-1: 4px;
   --rp-space-2: 8px;
@@ -136,60 +147,69 @@
   --rp-space-12: 48px;
   --rp-space-16: 64px;
   --rp-space-20: 80px;
+  --rp-space-24: 96px;
+  --rp-space-32: 128px;
 
   /* ==========================================================================
-     9. BORDER RADII (Disciplined & Restrained)
+     9. BORDER RADII (Editorial Frame & Floating Panels)
      ========================================================================== */
   --rp-radius-xs: 4px;
   --rp-radius-sm: 6px;
   --rp-radius-md: 8px;
-  --rp-radius-lg: 12px;
-  --rp-radius-xl: 16px;
+  --rp-radius-lg: 14px;
+  --rp-radius-xl: 20px;
+  --rp-radius-frame: 28px;             /* Large cinematic frame radius */
   --rp-radius-full: 9999px;
 
   /* ==========================================================================
      10. TRANSITIONS & TIMING
      ========================================================================== */
-  --rp-transition-fast: 110ms cubic-bezier(0.16, 1, 0.3, 1);
-  --rp-transition-normal: 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  --rp-transition-smooth: 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  --rp-transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --rp-transition-normal: 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --rp-transition-smooth: 340ms cubic-bezier(0.16, 1, 0.3, 1);
+  --rp-transition-cinematic: 550ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* ==========================================================================
-     11. TYPOGRAPHY
+     11. TYPOGRAPHY (Condensed Display + Technical Monospace)
      ========================================================================== */
-  --rp-font-editorial: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+  --rp-font-condensed: 'Anton', 'Bebas Neue', 'Oswald', sans-serif;
+  --rp-font-display: 'Anton', 'Bebas Neue', 'Oswald', sans-serif;
+  --rp-font-editorial: 'Anton', 'Bebas Neue', sans-serif;
   --rp-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --rp-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 /* ==========================================================================
-   EDITORIAL TYPOGRAPHY CLASSES
+   EDITORIAL DISPLAY TYPOGRAPHY CLASSES
    ========================================================================== */
 .editorial-title-hero {
-  font-family: var(--rp-font-editorial);
-  font-size: 56px;
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -0.035em;
-  color: #ffffff;
+  font-family: var(--rp-font-condensed);
+  font-size: clamp(56px, 9vw, 140px);
+  font-weight: 400;
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--rp-text-cream);
 }
 
 .editorial-title-lg {
-  font-family: var(--rp-font-editorial);
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-  color: #ffffff;
+  font-family: var(--rp-font-condensed);
+  font-size: clamp(38px, 6vw, 84px);
+  font-weight: 400;
+  line-height: 0.96;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--rp-text-cream);
 }
 
 .editorial-title-md {
-  font-family: var(--rp-font-editorial);
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-  color: #ffffff;
+  font-family: var(--rp-font-condensed);
+  font-size: clamp(26px, 3.5vw, 44px);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--rp-text-cream);
 }
 
 .editorial-eyebrow {
@@ -197,12 +217,13 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--rp-text-accent);
+  letter-spacing: 0.12em;
+  color: var(--rp-text-muted);
 }
 
 .gradient-headline-cinematic {
-  background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 75%, #818cf8 100%);
+  color: var(--rp-text-cream);
+  background: linear-gradient(180deg, #FFF1C7 20%, #E9D99F 70%, #C69255 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -214,15 +235,26 @@
   position: relative;
   background-color: var(--rp-bg-canvas);
   background-image: 
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99, 102, 241, 0.12) 0%, transparent 60%),
-    radial-gradient(circle at 90% 25%, rgba(139, 92, 246, 0.06) 0%, transparent 40%);
+    radial-gradient(circle at 50% 20%, rgba(112, 71, 34, 0.22) 0%, transparent 60%),
+    radial-gradient(circle at 85% 60%, rgba(58, 37, 23, 0.18) 0%, transparent 50%);
 }
 
-.subtle-grid-pattern {
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 32px 32px;
+.subtle-film-vignette {
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.85);
+}
+
+/* ==========================================================================
+   THE REUSABLE CINEMATIC FRAME (.cinematic-frame)
+   ========================================================================== */
+.cinematic-frame {
+  position: relative;
+  width: clamp(320px, 92vw, 1560px);
+  margin: 0 auto;
+  border-radius: var(--rp-radius-frame);
+  border: 1px solid var(--rp-border-subtle);
+  background: var(--rp-bg-subtle);
+  box-shadow: var(--rp-shadow-frame);
+  overflow: hidden;
 }
 
 /* ==========================================================================
@@ -241,7 +273,7 @@
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
-  border-radius: var(--rp-radius-md);
+  border-radius: var(--rp-radius-sm);
   border: 1px solid transparent;
   cursor: pointer;
   white-space: nowrap;
@@ -268,64 +300,60 @@
 
 /* Button Sizes */
 .btn-sm {
-  padding: 5px 10px;
+  padding: 6px 12px;
   font-size: 12px;
-  border-radius: var(--rp-radius-sm);
+  border-radius: var(--rp-radius-xs);
 }
 
 .btn-md {
-  padding: 8px 14px;
+  padding: 9px 16px;
   font-size: 13px;
 }
 
 .btn-lg {
-  padding: 11px 20px;
+  padding: 12px 24px;
   font-size: 14px;
   font-weight: 600;
 }
 
-.btn-icon {
-  padding: 8px;
-  border-radius: var(--rp-radius-md);
-}
-
-.btn-icon.btn-sm {
-  padding: 5px;
-}
-
-/* Button Variants */
+/* Compact Warm CTA Button */
 .btn-primary {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: #ffffff;
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.35);
+  background: var(--rp-text-cream);
+  color: #080604;
+  border-color: rgba(242, 229, 184, 0.4);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
 }
 
 .btn-primary:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.5);
+  background: #FFF1C7;
+  color: #000000;
+  border-color: #FFFFFF;
+  box-shadow: 0 6px 24px rgba(198, 146, 85, 0.25);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background: var(--rp-bg-surface);
+  background: rgba(36, 24, 14, 0.6);
   border-color: var(--rp-border-default);
-  color: var(--rp-text-primary);
+  color: var(--rp-text-cream);
 }
 
 .btn-secondary:hover {
-  background: var(--rp-bg-surface-hover);
+  background: rgba(58, 37, 23, 0.8);
   border-color: var(--rp-border-hover);
-  color: #ffffff;
+  color: #FFF1C7;
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--rp-text-secondary);
+  color: var(--rp-text-muted);
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--rp-text-primary);
+  background: rgba(141, 130, 114, 0.1);
+  color: var(--rp-text-cream);
 }
 
 .btn-danger {
@@ -335,8 +363,8 @@
 }
 
 .btn-danger:hover {
-  background: rgba(239, 68, 68, 0.22);
-  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(220, 38, 38, 0.25);
+  border-color: rgba(220, 38, 38, 0.6);
   color: #ffffff;
 }
 
@@ -347,8 +375,8 @@
 }
 
 .btn-success:hover {
-  background: rgba(16, 185, 129, 0.22);
-  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.6);
   color: #ffffff;
 }
 
@@ -357,10 +385,10 @@
    -------------------------------------------------------------------------- */
 .input {
   width: 100%;
-  padding: 8px 12px;
+  padding: 9px 14px;
   background: var(--rp-bg-input);
   border: 1px solid var(--rp-border-default);
-  border-radius: var(--rp-radius-md);
+  border-radius: var(--rp-radius-sm);
   color: var(--rp-text-primary);
   font-family: var(--rp-font-sans);
   font-size: 13px;
@@ -376,21 +404,15 @@
 
 .input:focus {
   border-color: var(--rp-border-focus);
-  box-shadow: 0 0 0 1px var(--rp-primary);
-}
-
-.input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: rgba(8, 12, 20, 0.6);
+  box-shadow: 0 0 0 1px var(--rp-warm-gold);
 }
 
 .textarea {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: var(--rp-bg-input);
   border: 1px solid var(--rp-border-default);
-  border-radius: var(--rp-radius-md);
+  border-radius: var(--rp-radius-sm);
   color: var(--rp-text-primary);
   font-family: var(--rp-font-sans);
   font-size: 13px;
@@ -404,7 +426,7 @@
 
 .textarea:focus {
   border-color: var(--rp-border-focus);
-  box-shadow: 0 0 0 1px var(--rp-primary);
+  box-shadow: 0 0 0 1px var(--rp-warm-gold);
 }
 
 /* --------------------------------------------------------------------------
@@ -449,7 +471,7 @@
 .card-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--rp-text-primary);
+  color: var(--rp-text-cream);
 }
 
 .card-subtitle {
@@ -467,7 +489,7 @@
   justify-content: space-between;
   padding: var(--rp-space-3) var(--rp-space-5);
   border-top: 1px solid var(--rp-border-subtle);
-  background: rgba(6, 9, 16, 0.4);
+  background: rgba(13, 10, 7, 0.6);
 }
 
 /* --------------------------------------------------------------------------
@@ -477,12 +499,12 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 7px;
-  border-radius: var(--rp-radius-sm);
+  padding: 2px 8px;
+  border-radius: var(--rp-radius-xs);
   font-size: 11px;
   font-weight: 600;
   line-height: 1.3;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   border: 1px solid transparent;
   white-space: nowrap;
 }
@@ -492,7 +514,7 @@
 }
 
 .badge-default {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(141, 130, 114, 0.1);
   border-color: var(--rp-border-subtle);
   color: var(--rp-text-secondary);
 }
@@ -500,13 +522,13 @@
 .badge-primary {
   background: var(--rp-primary-subtle);
   border-color: var(--rp-primary-border);
-  color: #a5b4fc;
+  color: var(--rp-text-cream);
 }
 
 .badge-purple {
   background: var(--rp-purple-subtle);
   border-color: var(--rp-purple-border);
-  color: #d8b4fe;
+  color: var(--rp-text-cream);
 }
 
 .badge-success {
@@ -572,40 +594,40 @@
 
 /* Status Variants */
 .status-idle {
-  background: rgba(100, 116, 139, 0.12);
-  border-color: rgba(100, 116, 139, 0.25);
-  color: #94a3b8;
+  background: rgba(141, 130, 114, 0.12);
+  border-color: rgba(141, 130, 114, 0.25);
+  color: var(--rp-text-muted);
 }
-.status-idle .status-dot { background: #64748b; }
+.status-idle .status-dot { background: #8D8272; }
 
 .status-planning {
   background: var(--rp-primary-subtle);
   border-color: var(--rp-primary-border);
-  color: #a5b4fc;
+  color: var(--rp-text-cream);
 }
-.status-planning .status-dot { background: var(--rp-primary); }
-.status-planning .status-pulse { border: 1px solid var(--rp-primary); }
+.status-planning .status-dot { background: var(--rp-warm-gold); }
+.status-planning .status-pulse { border: 1px solid var(--rp-warm-gold); }
 
 .status-executing {
-  background: var(--rp-purple-subtle);
-  border-color: var(--rp-purple-border);
-  color: #d8b4fe;
+  background: rgba(138, 88, 44, 0.2);
+  border-color: rgba(198, 146, 85, 0.35);
+  color: #E9D99F;
 }
-.status-executing .status-dot { background: var(--rp-purple); }
-.status-executing .status-pulse { border: 1px solid var(--rp-purple); }
+.status-executing .status-dot { background: #C69255; }
+.status-executing .status-pulse { border: 1px solid #C69255; }
 
 .status-observing {
   background: var(--rp-info-subtle);
   border-color: var(--rp-info-border);
-  color: #7dd3fc;
+  color: var(--rp-text-cream);
 }
-.status-observing .status-dot { background: var(--rp-info); }
-.status-observing .status-pulse { border: 1px solid var(--rp-info); }
+.status-observing .status-dot { background: #C69255; }
+.status-observing .status-pulse { border: 1px solid #C69255; }
 
 .status-recovering {
   background: var(--rp-warning-subtle);
   border-color: var(--rp-warning-border);
-  color: #fcd34d;
+  color: #FCD34D;
 }
 .status-recovering .status-dot { background: var(--rp-warning); }
 .status-recovering .status-pulse { border: 1px solid var(--rp-warning); }
@@ -613,14 +635,14 @@
 .status-completed {
   background: var(--rp-success-subtle);
   border-color: var(--rp-success-border);
-  color: #6ee7b7;
+  color: #6EE7B7;
 }
 .status-completed .status-dot { background: var(--rp-success); }
 
 .status-failed {
   background: var(--rp-error-subtle);
   border-color: var(--rp-error-border);
-  color: #fca5a5;
+  color: #FCA5A5;
 }
 .status-failed .status-dot { background: var(--rp-error); }
 
@@ -633,11 +655,21 @@
 }
 
 @keyframes rp-zoom-in {
-  from { opacity: 0; transform: scale(0.96); }
+  from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes rp-pulse-ring {
   0% { transform: scale(0.6); opacity: 0.8; }
   100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes rp-orb-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.08); }
+}
+
+@keyframes rp-float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }

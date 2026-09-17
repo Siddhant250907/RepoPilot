@@ -95,7 +95,7 @@ export default function LoginScreen({ onLoginSuccess, onBackToLanding }) {
     <div className="cinematic-login-screen-root">
       {/* Background Atmosphere */}
       <div className="ambient-beam-top" />
-      <div className="ambient-glow-indigo" />
+      <div className="ambient-glow-warm" />
       <div className="hairline-grid-pattern" />
 
       {/* Top Bar: Back to Landing */}
