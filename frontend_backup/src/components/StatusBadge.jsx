@@ -1,73 +1,67 @@
 /**
  * StatusBadge Component.
  *
- * Displays cognitive execution state with Lucide icons, pulsing indicator,
- * and semantic color accents.
+ * Owner: Person 3
+ *
+ * Responsibilities:
+ * - Display agent cognitive execution status.
+ * - Support statuses:
+ *   IDLE, PLANNING, EXECUTING, OBSERVING, RECOVERING, COMPLETED, FAILED.
  */
 
 import React from 'react';
-import { 
-  Brain, 
-  Terminal, 
-  Eye, 
-  RotateCcw, 
-  CheckCircle2, 
-  XCircle, 
-  CircleDot,
-  Loader2
-} from 'lucide-react';
 
 const STATUS_CONFIGS = {
   IDLE: {
     label: 'IDLE',
-    icon: <CircleDot size={13} />,
+    icon: '⚪',
     className: 'status-idle',
     description: 'Awaiting task input',
   },
   PLANNING: {
     label: 'PLANNING',
-    icon: <Brain size={13} />,
+    icon: '🧠',
     className: 'status-planning',
     description: 'Decomposing task into sub-goals',
     pulsing: true,
   },
   EXECUTING: {
     label: 'EXECUTING',
-    icon: <Terminal size={13} />,
+    icon: '⚙️',
     className: 'status-executing',
     description: 'Dispatching tool invocation',
     pulsing: true,
   },
   OBSERVING: {
     label: 'OBSERVING',
-    icon: <Eye size={13} />,
+    icon: '👁',
     className: 'status-observing',
-    description: 'Analyzing tool execution output',
+    description: 'Analyzing tool execution feedback',
     pulsing: true,
   },
   RECOVERING: {
     label: 'RECOVERING',
-    icon: <RotateCcw size={13} />,
+    icon: '🔄',
     className: 'status-recovering',
     description: 'Reflecting on failure & adjusting plan',
     pulsing: true,
   },
   REFLECTING: {
     label: 'REFLECTING',
-    icon: <Brain size={13} />,
+    icon: '🧠',
     className: 'status-recovering',
     description: 'Reflecting on cognitive outcome',
     pulsing: true,
   },
   COMPLETED: {
     label: 'COMPLETED',
-    icon: <CheckCircle2 size={13} />,
+    icon: '✅',
     className: 'status-completed',
     description: 'Task verified & completed',
   },
   FAILED: {
     label: 'FAILED',
-    icon: <XCircle size={13} />,
+    icon: '❌',
     className: 'status-failed',
     description: 'Agent reached unrecoverable state',
   },
@@ -77,16 +71,15 @@ export default function StatusBadge({ status = 'IDLE' }) {
   const normalizedKey = (status || 'IDLE').toUpperCase();
   const config = STATUS_CONFIGS[normalizedKey] || {
     label: normalizedKey,
-    icon: <CircleDot size={13} />,
+    icon: '🔹',
     className: 'status-default',
-    description: 'Current agent state',
+    description: 'Unknown state',
   };
 
   return (
     <div
       className={`status-badge-container ${config.className}`}
       title={config.description}
-      role="status"
     >
       <span className="status-indicator">
         {config.pulsing && <span className="status-pulse-ring"></span>}

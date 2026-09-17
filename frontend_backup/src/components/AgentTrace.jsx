@@ -1,78 +1,63 @@
 /**
  * AgentTrace Component.
  *
- * Chronological rendering of the agent cognitive trajectory:
- *   PLAN -> TOOL CALL -> TOOL RESULT -> ERROR -> REFLECTION -> NEW TOOL CALL -> SUCCESS -> FINAL
+ * Owner: Person 3
  *
- * Polished timeline cards with Lucide icons and distinct semantic accents:
- * - Plan: blue/indigo accent
- * - Tool Call: purple accent
- * - Tool Result: dark terminal observation
- * - Error: crimson red accent
- * - Reflection & Recovery: amber/orange accent
- * - Final: emerald green completion
+ * Responsibilities:
+ * - Chronological rendering of the agent cognitive trajectory:
+ *   PLAN -> TOOL CALL -> TOOL RESULT -> ERROR -> REFLECTION -> NEW TOOL CALL -> SUCCESS -> FINAL
+ * - Auto-scroll to newest event as events arrive progressively.
+ * - Prominent error display and failure-recovery loop highlighting.
+ * - Reusable across real API stream and mock simulation.
  */
 
 import React, { useEffect, useRef } from 'react';
 import ToolCall from './ToolCall.jsx';
 import ErrorCard from './ErrorCard.jsx';
 import FinalResult from './FinalResult.jsx';
-import { 
-  Brain, 
-  Terminal, 
-  Eye, 
-  RotateCcw, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Sparkles, 
-  Layers, 
-  Clock, 
-  ListOrdered,
-  ArrowDown
-} from 'lucide-react';
 
 const EVENT_CONFIG = {
   plan: {
-    icon: <Brain size={16} />,
+    icon: '🧠',
     label: 'PLAN',
     className: 'event-plan',
   },
   tool_call: {
-    icon: <Terminal size={16} />,
+    icon: '⚙️',
     label: 'TOOL CALL',
     className: 'event-tool-call',
   },
   tool_result: {
-    icon: <Eye size={16} />,
+    icon: '👁',
     label: 'OBSERVATION',
     className: 'event-observation',
   },
   observation: {
-    icon: <Eye size={16} />,
+    icon: '👁',
     label: 'OBSERVATION',
     className: 'event-observation',
   },
   reflection: {
-    icon: <Sparkles size={16} />,
+    icon: '🧠',
     label: 'REFLECTION',
     className: 'event-reflection',
   },
   error: {
-    icon: <AlertTriangle size={16} />,
+    icon: '❌',
     label: 'TOOL FAILURE',
     className: 'event-error',
   },
   final: {
-    icon: <CheckCircle2 size={16} />,
+    icon: '✅',
     label: 'FINAL',
     className: 'event-final',
   },
 };
 
-export default function AgentTrace({ events = [], onStartNewTask }) {
+export default function AgentTrace({ events = [] }) {
   const traceBottomRef = useRef(null);
 
-  // Automatically scroll trace to newest event as it arrives
+  // Automatically scroll trace to the newest event as it arrives
   useEffect(() => {
     if (traceBottomRef.current) {
       traceBottomRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -82,44 +67,24 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
   if (!events || events.length === 0) {
     return (
       <div className="trace-empty-container">
-        <div className="trace-empty-icon-wrap">
-          <Brain size={36} className="pulse-brain-icon" />
-        </div>
-        <h3 className="empty-title">Awaiting Agent Dispatch</h3>
+        <div className="trace-empty-icon">🧠</div>
+        <h3>No Cognitive Events Yet</h3>
         <p className="trace-empty-text">
-          Select a demo scenario or enter your repository objective, then click{' '}
-          <strong>Analyze Repository & Run Agent</strong>. The progressive cognitive loop will stream live:
+          Select a demo scenario or enter your repository objective above, then click <strong>RUN AGENT</strong>.
+          The progressive cognitive trajectory will unfold in real time:
         </p>
         <div className="trace-loop-diagram">
-          <div className="loop-step">
-            <Brain size={14} />
-            <span>PLAN</span>
-          </div>
+          <span className="loop-step">🧠 PLAN</span>
           <span className="loop-arrow">→</span>
-          <div className="loop-step">
-            <Terminal size={14} />
-            <span>ACT</span>
-          </div>
+          <span className="loop-step">⚙️ ACT</span>
           <span className="loop-arrow">→</span>
-          <div className="loop-step">
-            <Eye size={14} />
-            <span>OBSERVE</span>
-          </div>
+          <span className="loop-step">👁 OBSERVE</span>
           <span className="loop-arrow">→</span>
-          <div className="loop-step highlight-recover">
-            <RotateCcw size={14} />
-            <span>REFLECT</span>
-          </div>
+          <span className="loop-step highlight-recover">🔄 REFLECT</span>
           <span className="loop-arrow">→</span>
-          <div className="loop-step">
-            <Terminal size={14} />
-            <span>NEW ACT</span>
-          </div>
+          <span className="loop-step">⚙️ NEW ACT</span>
           <span className="loop-arrow">→</span>
-          <div className="loop-step highlight-success">
-            <CheckCircle2 size={14} />
-            <span>FINAL</span>
-          </div>
+          <span className="loop-step highlight-success">✅ FINAL</span>
         </div>
       </div>
     );
@@ -127,13 +92,10 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
 
   return (
     <div className="agent-trace-timeline">
-      <div className="timeline-header-bar">
-        <div className="timeline-meta-left">
-          <div className="step-counter-tag">
-            <ListOrdered size={14} />
-            <span>{events.length} Cognitive Events</span>
-          </div>
-          <span className="timeline-subtitle">Sequential Agent Reasoning Trajectory</span>
+      <div className="timeline-header">
+        <div className="timeline-title-wrap">
+          <span className="trace-count-badge">{events.length} Events Logged</span>
+          <span className="trace-subtitle">Autonomous Cognitive Loop Trajectory</span>
         </div>
       </div>
 
@@ -150,7 +112,7 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
           const type = isFailure ? 'error' : rawType;
 
           const config = EVENT_CONFIG[type] || {
-            icon: <Layers size={16} />,
+            icon: '🔹',
             label: type.toUpperCase(),
             className: 'event-generic',
           };
@@ -162,16 +124,12 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
           return (
             <div
               key={event.id || event.step || index}
-              className={`trace-node ${config.className} ${isFailure ? 'node-is-failure' : ''} ${
-                isRecoveryMoment ? 'node-is-recovery' : ''
-              }`}
+              className={`trace-node ${config.className} ${isFailure ? 'node-is-failure' : ''} ${isRecoveryMoment ? 'node-is-recovery' : ''}`}
             >
-              {/* Timeline marker spine */}
+              {/* Timeline spine and node marker */}
               <div className="node-marker-col">
                 <div
-                  className={`node-marker ${isFailure ? 'marker-failure' : ''} ${
-                    type === 'reflection' ? 'marker-reflection' : ''
-                  }`}
+                  className={`node-marker ${isFailure ? 'marker-failure' : ''} ${type === 'reflection' ? 'marker-reflection' : ''}`}
                   title={`Step ${stepNumber}: ${config.label}`}
                 >
                   <span className="marker-icon">{config.icon}</span>
@@ -183,39 +141,23 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
               <div className={`node-content-card ${isFailure ? 'content-card-failure' : ''}`}>
                 <div className="node-header">
                   <div className="node-title-group">
-                    <span className="node-step-tag">#{stepNumber}</span>
+                    <span className="node-step-tag">Step #{stepNumber}</span>
                     <span className={`node-type-badge type-${type}`}>
-                      {config.icon}
-                      <span>{config.label}</span>
+                      {config.icon} {config.label}
                     </span>
-
                     {isFailure && (
-                      <span className="critical-moment-pill">
-                        <AlertTriangle size={12} />
-                        <span>FAILURE ENCOUNTERED</span>
-                      </span>
+                      <span className="critical-moment-pill">⚠️ FAILURE ENCOUNTERED</span>
                     )}
-
                     {type === 'reflection' && (
-                      <span className="cognitive-pivot-pill">
-                        <Sparkles size={12} />
-                        <span>AUTONOMOUS ADAPTATION</span>
-                      </span>
+                      <span className="cognitive-pivot-pill">🧠 AUTONOMOUS ADAPTATION</span>
                     )}
-
                     {event.title && <span className="node-custom-title">{event.title}</span>}
                   </div>
-
-                  {timestamp && (
-                    <div className="node-timestamp-box">
-                      <Clock size={12} />
-                      <span className="node-timestamp">{timestamp}</span>
-                    </div>
-                  )}
+                  {timestamp && <span className="node-timestamp">{timestamp}</span>}
                 </div>
 
                 <div className="node-body">
-                  {/* 1. PLAN EVENT */}
+                  {/* PLAN EVENT */}
                   {type === 'plan' && (
                     <div className="plan-content">
                       <p className="plan-text">{event.message || event.content || event.plan}</p>
@@ -224,10 +166,7 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
                           <span className="subgoals-label">Cognitive Sub-goals:</span>
                           <ul>
                             {event.subgoals.map((g, gi) => (
-                              <li key={gi}>
-                                <span className="subgoal-bullet"></span>
-                                <span>{g}</span>
-                              </li>
+                              <li key={gi}>{g}</li>
                             ))}
                           </ul>
                         </div>
@@ -235,7 +174,7 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
                     </div>
                   )}
 
-                  {/* 2. TOOL CALL EVENT */}
+                  {/* TOOL CALL EVENT */}
                   {type === 'tool_call' && (
                     <ToolCall
                       toolName={event.tool || event.toolName}
@@ -245,16 +184,13 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
                     />
                   )}
 
-                  {/* 3. TOOL RESULT / OBSERVATION EVENT */}
+                  {/* TOOL RESULT / OBSERVATION EVENT */}
                   {type === 'tool_result' && !isFailure && (
                     <div className="observation-content">
                       <div className="observation-header">
-                        <div className="obs-header-left">
-                          <Eye size={14} />
-                          <span className="obs-label">
-                            Output from <code>{event.tool || 'system'}</code>
-                          </span>
-                        </div>
+                        <span className="obs-label">
+                          👁 Tool Output ({event.tool || 'system'}):
+                        </span>
                         {event.exitCode !== undefined && (
                           <span className={`exit-code-tag code-${event.exitCode === 0 ? '0' : 'err'}`}>
                             exit {event.exitCode}
@@ -270,45 +206,40 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
                     </div>
                   )}
 
-                  {/* 4. ERROR CARD EVENT */}
+                  {/* ERROR CARD EVENT (Prominent Tool Failure) */}
                   {isFailure && (
                     <ErrorCard
                       tool={event.tool || 'shell'}
-                      error={event.error || event.message || event.data || 'Command failed with exit code 1'}
+                      error={event.error || event.message || event.data || 'Command failed with non-zero exit'}
                       recoveryPlan={event.recoveryPlan || event.recovery}
                       data={event}
                     />
                   )}
 
-                  {/* 5. REFLECTION EVENT */}
+                  {/* REFLECTION EVENT */}
                   {type === 'reflection' && (
                     <div className="reflection-content">
                       <div className="reflection-quote-border">
-                        <div className="reflection-header-row">
-                          <Sparkles size={15} />
-                          <span className="reflection-heading">Self-Correction & Diagnostic Reasoning:</span>
-                        </div>
+                        <span className="reflection-heading">Self-Correction & Diagnostic Reasoning:</span>
                         <p className="reflection-text">
                           {event.message || event.content || event.reflection}
                         </p>
                       </div>
                       {event.hypothesis && (
                         <div className="hypothesis-box">
-                          <strong className="hypo-label">Updated Diagnostic Hypothesis:</strong>
-                          <span className="hypo-text">{event.hypothesis}</span>
+                          <span className="hypo-label">New Hypothesis:</span> {event.hypothesis}
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* 6. FINAL RESULT EVENT */}
+                  {/* FINAL RESULT EVENT */}
                   {type === 'final' && (
                     <FinalResult
                       response={event.message || event.response || event.content || event.summary}
                       verification={event.verification}
                       filesModified={event.filesModified || event.files}
                       result={event.result || event.payload}
-                      onStartNewTask={onStartNewTask}
                     />
                   )}
                 </div>
