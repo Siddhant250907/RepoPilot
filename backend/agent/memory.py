@@ -1,43 +1,75 @@
 """
-Agent Memory and Trajectory Management.
+Agent Memory for RepoPilot.
 
-Owner: Person 1
+Owner: Person 1 (Agent Core)
 
 Responsibilities:
-- Maintain short-term working memory: conversation history, tool inputs/outputs, reflections.
-- Track step-by-step execution trajectory for auditing and visualization.
-- Provide token-aware context window truncation / summarization.
-
-TODO:
-- Implement sliding window or summarizer for long execution traces.
-- Provide exportable trajectory data structure for frontend visualization.
+- Maintain short-term working memory and conversation history for the agent.
+- Store interaction steps (user task, agent actions, tool results, tool errors, reflections).
+- Return stored history for prompt construction and trajectory inspection.
+- Pure in-memory representation: no databases, embeddings, or vector stores.
 """
 
 from typing import List, Dict, Any
 
 
-class AgentMemory:
-    """Short-term and trajectory memory for the autonomous agent."""
+class Memory:
+    """
+    A simple in-memory history tracker for the autonomous agent.
+
+    Stores sequential interaction records using role and content dictionaries.
+    """
 
     def __init__(self):
-        self.trajectory: List[Dict[str, Any]] = []
+        # 1. Start with an empty history
+        self.history: List[Dict[str, Any]] = []
 
-    def add_step(self, step_type: str, content: Any):
+    def add_message(self, role: str, content: Any) -> None:
         """
-        Append a step (plan, action, observation, reflection) to memory.
+        Add a message to history using role and content.
 
-        TODO: Implement structured storage and serialization.
+        Supported roles include:
+        - 'user' / 'task': User task or goal description
+        - 'action': Agent's planned action or tool invocation
+        - 'tool_result': Successful output from tool execution
+        - 'tool_error': Execution failure or error message from a tool
+        - 'reflection': Agent self-assessment and next-step reasoning
         """
-        self.trajectory.append({"type": step_type, "content": content})
+        self.history.append({"role": role, "content": content})
+
+    def add(self, role: str, content: Any) -> None:
+        """Convenience alias for add_message."""
+        self.add_message(role=role, content=content)
+
+    def get_history(self) -> List[Dict[str, Any]]:
+        """Return the stored history."""
+        return list(self.history)
+
+    def get_messages(self) -> List[Dict[str, Any]]:
+        """Return the stored history as messages."""
+        return self.get_history()
 
     def get_context(self) -> List[Dict[str, Any]]:
-        """
-        Retrieve formatted trajectory for LLM context.
+        """Return formatted trajectory for LLM context."""
+        return self.get_history()
 
-        TODO: Implement context formatting with token limit guards.
-        """
-        return self.trajectory
+    def clear(self) -> None:
+        """Reset and empty the memory history."""
+        self.history.clear()
 
-    def clear(self):
-        """Reset memory buffer."""
-        self.trajectory.clear()
+    # Backwards compatibility methods for existing code and test suites
+    def add_step(self, step_type: str, content: Any) -> None:
+        """Record an execution step into history."""
+        self.history.append({"role": step_type, "type": step_type, "content": content})
+
+    @property
+    def trajectory(self) -> List[Dict[str, Any]]:
+        """Expose history for backwards compatibility."""
+        return self.history
+
+    def __len__(self) -> int:
+        return len(self.history)
+
+
+# Alias to maintain compatibility with existing AgentCore imports
+AgentMemory = Memory
