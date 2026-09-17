@@ -1,0 +1,10 @@
+{
+  "description": "Streamlines UI design by generating tailored page layouts from detailed briefs, helping designers create cohesive, user-focused interfaces efficiently.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
