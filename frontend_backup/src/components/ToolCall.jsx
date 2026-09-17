@@ -1,47 +1,43 @@
 /**
  * ToolCall Component.
  *
- * Visually displays tool name, formatted arguments, and execution status.
- * Styled with purple accents and Lucide icons.
+ * Owner: Person 3
+ *
+ * Responsibilities:
+ * - Visually display tool name, arguments, and execution status.
+ * - Supports tools such as:
+ *   FILE READER (Reading app.py)
+ *   SHELL (Running pytest)
+ *   WEB SEARCH (Searching Flask HTTP 500)
+ *   CALCULATOR (Calculating expected value)
  */
 
 import React, { useState } from 'react';
-import { 
-  Terminal, 
-  FileCode, 
-  FileText, 
-  Search, 
-  Calculator, 
-  GitBranch, 
-  Wrench, 
-  Copy, 
-  Check, 
-  ChevronDown, 
-  ChevronUp 
-} from 'lucide-react';
-import { useToast } from '../services/ToastContext.jsx';
+
+const TOOL_ICONS = {
+  'FILE_READER': '📁',
+  'FILE READER': '📁',
+  'FILE_WRITER': '✏️',
+  'FILE WRITER': '✏️',
+  'FILE TOOL': '📁',
+  'FILE_TOOL': '📁',
+  'SHELL': '💻',
+  'BASH': '💻',
+  'TERMINAL': '💻',
+  'WEB SEARCH': '🌐',
+  'WEB_SEARCH': '🌐',
+  'SEARCH': '🌐',
+  'CALCULATOR': '🔢',
+  'GIT': '🌿',
+  'DIFF': '🔍',
+};
 
 function getToolIcon(name = '') {
   const upper = name.toUpperCase();
-  if (upper.includes('SHELL') || upper.includes('BASH') || upper.includes('TERMINAL')) {
-    return <Terminal size={15} />;
+  for (const [key, icon] of Object.entries(TOOL_ICONS)) {
+    if (upper.includes(key)) return icon;
   }
-  if (upper.includes('WRITE')) {
-    return <FileCode size={15} />;
-  }
-  if (upper.includes('FILE') || upper.includes('READER')) {
-    return <FileText size={15} />;
-  }
-  if (upper.includes('SEARCH')) {
-    return <Search size={15} />;
-  }
-  if (upper.includes('CALC')) {
-    return <Calculator size={15} />;
-  }
-  if (upper.includes('GIT') || upper.includes('DIFF')) {
-    return <GitBranch size={15} />;
-  }
-  return <Wrench size={15} />;
+  return '⚙️';
 }
 
 function formatArguments(args, toolName = '') {
@@ -78,9 +74,8 @@ export default function ToolCall({
   data,
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const { toast } = useToast();
 
+  // Normalize props
   const rawToolName = data?.tool || data?.toolName || toolName;
   const resolvedToolName = rawToolName.replace(/_/g, ' ').toUpperCase();
   const rawArgs =
@@ -90,9 +85,8 @@ export default function ToolCall({
       ? args
       : data?.arguments || data?.args;
   const resolvedStatus = (data?.status || status || 'EXECUTING').toUpperCase();
-  const formattedArgs = formatArguments(rawArgs, rawToolName);
   const icon = getToolIcon(rawToolName);
-
+  const formattedArgs = formatArguments(rawArgs, rawToolName);
   const isComplexJson =
     typeof rawArgs === 'object' &&
     rawArgs !== null &&
@@ -100,47 +94,27 @@ export default function ToolCall({
     !rawArgs.path &&
     !rawArgs.file;
 
-  const handleCopy = () => {
-    const textToCopy = typeof rawArgs === 'object' ? JSON.stringify(rawArgs, null, 2) : String(formattedArgs);
-    navigator.clipboard.writeText(textToCopy);
-    setCopied(true);
-    toast.info('Copied tool parameters');
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className={`tool-call-card tool-status-${resolvedStatus.toLowerCase()}`}>
       <div className="tool-call-header">
         <div className="tool-call-identity">
-          <span className="tool-icon-wrapper" aria-hidden="true">
+          <span className="tool-type-icon" aria-hidden="true">
             {icon}
           </span>
           <span className="tool-name-badge">{resolvedToolName}</span>
         </div>
-
-        <div className="tool-call-actions">
-          <button
-            type="button"
-            className="tool-copy-btn"
-            onClick={handleCopy}
-            title="Copy arguments"
-            aria-label="Copy tool arguments"
-          >
-            {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
-          </button>
-
+        <div className="tool-call-meta">
           <span className={`tool-status-pill status-${resolvedStatus.toLowerCase()}`}>
             {resolvedStatus}
           </span>
-
           {isComplexJson && (
             <button
               type="button"
               className="toggle-args-btn"
               onClick={() => setIsExpanded(!isExpanded)}
+              aria-label="Toggle arguments view"
             >
-              {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-              <span>{isExpanded ? 'Collapse' : 'Details'}</span>
+              {isExpanded ? 'Collapse' : 'Details'}
             </button>
           )}
         </div>
@@ -148,7 +122,7 @@ export default function ToolCall({
 
       <div className="tool-call-body">
         <div className="tool-args-display">
-          <span className="args-label">Tool Input:</span>
+          <span className="args-label">Arguments:</span>
           {isComplexJson && !isExpanded ? (
             <code className="args-inline-preview">
               {Object.keys(rawArgs)
