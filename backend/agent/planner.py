@@ -24,16 +24,37 @@ class Planner:
 
     def create_initial_plan(self, task: str) -> List[str]:
         """
-        Generate initial sequence of sub-goals.
-
-        TODO: Implement plan generation logic.
+        Generate initial sequence of sub-goals based on general problem solving stages.
+        Does NOT mandate specific tools; leaves tool selection to the autonomous LLM reasoning.
         """
-        return []
+        if not task or not task.strip():
+            return ["Analyze the given objective", "Determine required actions", "Complete the task"]
+
+        clean_task = task.strip()
+        return [
+            f"Understand and analyze task objective: {clean_task}",
+            "Explore relevant repository context, files, commands, or data as needed",
+            "Perform necessary actions and verify each intermediate result",
+            "Synthesize findings and provide a comprehensive final answer"
+        ]
 
     def replan(self, current_plan: List[str], failure_observation: str) -> List[str]:
         """
-        Re-evaluate plan based on failure or unexpected observation.
-
-        TODO: Implement adaptive replanning logic.
+        Re-evaluate and adapt the plan based on failure or unexpected observation.
+        Adds recovery and diagnosis steps without hardcoding specific tools.
         """
-        return current_plan
+        base_plan = list(current_plan) if current_plan else ["Resolve objective"]
+        obs_summary = str(failure_observation).strip()
+        if len(obs_summary) > 120:
+            obs_summary = obs_summary[:117] + "..."
+
+        diagnostic_step = f"Diagnose cause of unexpected result or error: {obs_summary}"
+        recovery_step = "Reassess approach, alternative parameters, or alternative actions to achieve the objective"
+
+        new_plan = [diagnostic_step, recovery_step]
+        for step in base_plan:
+            if step not in new_plan:
+                new_plan.append(step)
+
+        return new_plan
+
