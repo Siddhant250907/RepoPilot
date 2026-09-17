@@ -2,16 +2,19 @@
  * TaskInput Component.
  *
  * Professional AI Developer Workspace Task Composer:
- * - Header: "Good evening." / "What should RepoPilot investigate?"
+ * - Editorial Headline:
+ *   "WHAT SHOULD"
+ *   "REPOPILOT"
+ *   "INVESTIGATE?"
  * - Quick actions: "Debug an error", "Run tests", "Investigate API", "Explain code"
- * - Large premium task composer textarea with placeholder:
+ * - Large premium task composer textarea with exact placeholder:
  *   "Describe the bug, error, or behavior you want RepoPilot to investigate..."
  * - Keyboard shortcut: Ctrl + Enter (Windows) / Cmd + Enter (Mac)
  * - Below textarea: Repository selector, Branch selector, Small repository metadata
  * - Primary button: "Analyze Repository"
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   FolderGit2, 
   GitBranch,
@@ -24,7 +27,8 @@ import {
   Code2, 
   CornerDownLeft,
   Cpu,
-  Layers
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 
 const REPO_OPTIONS = [
@@ -82,14 +86,6 @@ export default function TaskInput({ onRun, disabled = false, initialRepo, initia
   const [activeQuickAction, setActiveQuickAction] = useState(null);
   const textareaRef = useRef(null);
 
-  // Determine dynamic greeting (defaults to "Good evening.")
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning.';
-    if (hour < 18) return 'Good afternoon.';
-    return 'Good evening.';
-  };
-
   const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
   const handleSubmit = (e) => {
@@ -98,15 +94,15 @@ export default function TaskInput({ onRun, disabled = false, initialRepo, initia
 
     if (onRun) {
       onRun({
-        repository: repository.trim(),
-        branch: branch.trim(),
+        repository,
+        branch,
         task: task.trim(),
       });
     }
   };
 
   const handleKeyDown = (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
       handleSubmit();
     }
@@ -125,10 +121,21 @@ export default function TaskInput({ onRun, disabled = false, initialRepo, initia
 
   return (
     <div className="workspace-composer-root">
-      {/* 1. Header: "Good evening." / "What should RepoPilot investigate?" */}
+      {/* 1. Large Editorial Headline: "WHAT SHOULD REPOPILOT INVESTIGATE?" */}
       <div className="composer-headline-block">
-        <h1 className="greeting-headline">{getGreeting()}</h1>
-        <p className="greeting-subheadline">What should RepoPilot investigate?</p>
+        <div className="composer-eyebrow-pill">
+          <span className="eyebrow-pulse-dot" />
+          <span>AUTONOMOUS COGNITIVE AGENT</span>
+        </div>
+        <h1 className="composer-editorial-headline">
+          WHAT SHOULD<br />
+          <span className="headline-gradient-span">REPOPILOT</span><br />
+          INVESTIGATE?
+        </h1>
+        <p className="composer-subheadline">
+          Provide an issue description, exception log, or test failure. The agent will formulate a plan,
+          dispatch sandbox tools, learn from failures, and verify a solution.
+        </p>
       </div>
 
       {/* 2. Large Premium Task Composer Card */}
@@ -156,91 +163,102 @@ export default function TaskInput({ onRun, disabled = false, initialRepo, initia
           </div>
         </div>
 
-        {/* Textarea Form */}
-        <form onSubmit={handleSubmit} className="task-form">
-          <div className="textarea-container">
-            <textarea
-              ref={textareaRef}
-              id="task-input-textarea"
-              rows={4}
-              className="premium-task-textarea"
-              placeholder="Describe the bug, error, or behavior you want RepoPilot to investigate..."
-              value={task}
-              onChange={(e) => {
-                setTask(e.target.value);
-                if (activeQuickAction) setActiveQuickAction(null);
-              }}
-              onKeyDown={handleKeyDown}
-              disabled={disabled}
-              required
-            />
+        {/* Large Textarea Area */}
+        <div className="composer-textarea-wrapper">
+          <textarea
+            ref={textareaRef}
+            className="composer-textarea"
+            placeholder="Describe the bug, error, or behavior you want RepoPilot to investigate..."
+            value={task}
+            onChange={(e) => setTask(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            rows={5}
+            aria-label="Task description input"
+          />
+
+          <div className="composer-textarea-footer-hint">
+            <span className="shortcut-hint-pill">
+              <CornerDownLeft size={12} />
+              <span>Press <strong>{isMac ? 'Cmd + Enter' : 'Ctrl + Enter'}</strong> to run</span>
+            </span>
           </div>
+        </div>
 
-          {/* Controls Bar Below Textarea */}
-          <div className="composer-bottom-bar">
-            <div className="composer-selectors-group">
-              {/* Repository Selector */}
-              <div className="selector-item repo-selector-item">
-                <FolderGit2 size={14} className="selector-icon" />
-                <select
-                  id="repository-selector"
-                  className="composer-select repo-select"
-                  value={repository}
-                  onChange={(e) => setRepository(e.target.value)}
-                  disabled={disabled}
-                  title="Target repository"
-                >
-                  {REPO_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.value}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Branch Selector */}
-              <div className="selector-item branch-selector-item">
-                <GitBranch size={13} className="selector-icon" />
-                <select
-                  id="branch-selector"
-                  className="composer-select branch-select"
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  disabled={disabled}
-                  title="Target branch"
-                >
-                  {BRANCH_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.value}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Small Repository Metadata */}
-              <div className="repo-metadata-pill" title="Environment runtime & sandbox details">
-                <span className="meta-dot"></span>
-                <span className="meta-text">Python 3.11 • pytest • sandbox</span>
-              </div>
-            </div>
-
-            {/* Primary Action Button: "Analyze Repository" */}
-            <div className="composer-submit-group">
-              <button
-                type="submit"
-                id="analyze-repository-btn"
-                className="analyze-repository-btn"
-                disabled={disabled || !task.trim() || !repository.trim()}
+        {/* Repository & Branch Selectors + Primary Analyze Action */}
+        <div className="composer-controls-row">
+          <div className="selectors-group">
+            {/* Repository Select */}
+            <div className="selector-field">
+              <span className="selector-label">
+                <FolderGit2 size={13} className="selector-icon" />
+                <span>Repository</span>
+              </span>
+              <select
+                className="workspace-select"
+                value={repository}
+                onChange={(e) => setRepository(e.target.value)}
+                disabled={disabled}
+                aria-label="Select target repository"
               >
-                <Play size={15} fill="currentColor" />
-                <span>{disabled ? 'Analyzing...' : 'Analyze Repository'}</span>
-                <span className="shortcut-badge">
-                  {isMac ? '⌘↵' : 'Ctrl+↵'}
-                </span>
-              </button>
+                {REPO_OPTIONS.map((repo) => (
+                  <option key={repo.value} value={repo.value}>
+                    {repo.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Branch Select */}
+            <div className="selector-field">
+              <span className="selector-label">
+                <GitBranch size={13} className="selector-icon" />
+                <span>Branch</span>
+              </span>
+              <select
+                className="workspace-select branch-select"
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                disabled={disabled}
+                aria-label="Select repository branch"
+              >
+                {BRANCH_OPTIONS.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-        </form>
+
+          {/* Primary Action Button */}
+          <div className="action-submit-group">
+            <button
+              type="button"
+              className="primary-analyze-btn"
+              onClick={handleSubmit}
+              disabled={disabled || !task.trim()}
+              title="Launch autonomous debugging agent (Analyze Repository)"
+            >
+              <Terminal size={15} />
+              <span>Run Agent</span>
+              <ArrowRight size={15} />
+            </button>
+          </div>
+        </div>
+
+        {/* Repository Metadata Bar */}
+        <div className="repo-metadata-bar">
+          <div className="meta-item">
+            <Cpu size={12} className="meta-icon" />
+            <span>Sandbox: Docker Container (Python 3.14 + AST Runner)</span>
+          </div>
+          <span className="meta-sep">•</span>
+          <div className="meta-item">
+            <Layers size={12} className="meta-icon" />
+            <span>Tools Armed: inspect_ast, search_codebase, run_pytest, apply_diff</span>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,22 +1,22 @@
 /**
  * AgentTrace Component.
  *
- * Chronological rendering of the agent cognitive trajectory:
- *   PLAN -> TOOL CALL -> TOOL RESULT -> ERROR -> REFLECTION -> NEW TOOL CALL -> SUCCESS -> FINAL
- *
- * Polished timeline cards with Lucide icons and distinct semantic accents:
- * - Plan: blue/indigo accent
- * - Tool Call: purple accent
- * - Tool Result: dark terminal observation
- * - Error: crimson red accent
- * - Reflection & Recovery: amber/orange accent
- * - Final: emerald green completion
+ * Premium vertical execution timeline for RepoPilot:
+ * - Vertical connecting rail linking each progressive event
+ * - Each step displays:
+ *   - step number (e.g. "STEP 01")
+ *   - event type badge (PLAN, TOOL, OBSERVE, TOOL FAILURE, REFLECTION, NEW ACTION, SUCCESS, FINAL)
+ *   - message (AI rationale / cognitive thought)
+ *   - tool name with dedicated icon
+ *   - status (THINKING, USING TOOL, OBSERVING, RECOVERING, COMPLETED)
+ *   - timestamp
+ *   - structured details when available (parameters, diff, error summary, test count)
+ * - Visually highlights the critical failure & recovery sequence:
+ *   TOOL FAILURE -> REFLECTION -> NEW ACTION -> SUCCESS
+ * - Avoids exposing raw logs as the primary UI.
  */
 
-import React, { useEffect, useRef } from 'react';
-import ToolCall from './ToolCall.jsx';
-import ErrorCard from './ErrorCard.jsx';
-import FinalResult from './FinalResult.jsx';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Brain, 
   Terminal, 
@@ -25,59 +25,145 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   Sparkles, 
-  Layers, 
   Clock, 
-  ListOrdered,
-  ArrowDown
+  Search,
+  FileCode,
+  FlaskConical,
+  FileDiff,
+  ChevronDown,
+  ChevronRight,
+  ShieldCheck,
+  Check,
+  Flame,
+  ArrowRight,
+  Bug
 } from 'lucide-react';
-
-const EVENT_CONFIG = {
-  plan: {
-    icon: <Brain size={16} />,
-    label: 'PLAN',
-    className: 'event-plan',
-  },
-  tool_call: {
-    icon: <Terminal size={16} />,
-    label: 'TOOL CALL',
-    className: 'event-tool-call',
-  },
-  tool_result: {
-    icon: <Eye size={16} />,
-    label: 'OBSERVATION',
-    className: 'event-observation',
-  },
-  observation: {
-    icon: <Eye size={16} />,
-    label: 'OBSERVATION',
-    className: 'event-observation',
-  },
-  reflection: {
-    icon: <Sparkles size={16} />,
-    label: 'REFLECTION',
-    className: 'event-reflection',
-  },
-  error: {
-    icon: <AlertTriangle size={16} />,
-    label: 'TOOL FAILURE',
-    className: 'event-error',
-  },
-  final: {
-    icon: <CheckCircle2 size={16} />,
-    label: 'FINAL',
-    className: 'event-final',
-  },
-};
 
 export default function AgentTrace({ events = [], onStartNewTask }) {
   const traceBottomRef = useRef(null);
+  const [expandedDetails, setExpandedDetails] = useState({});
 
-  // Automatically scroll trace to newest event as it arrives
+  // Auto-scroll to newest event
   useEffect(() => {
     if (traceBottomRef.current) {
       traceBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [events.length]);
+
+  const toggleDetails = (stepNum) => {
+    setExpandedDetails((prev) => ({
+      ...prev,
+      [stepNum]: !prev[stepNum],
+    }));
+  };
+
+  // Helper to determine semantic tool icon
+  const getToolIcon = (toolName) => {
+    const t = (toolName || '').toLowerCase();
+    if (t.includes('pytest') || t.includes('shell')) return <FlaskConical size={14} />;
+    if (t.includes('search')) return <Search size={14} />;
+    if (t.includes('file') || t.includes('read')) return <FileCode size={14} />;
+    if (t.includes('diff') || t.includes('patch')) return <FileDiff size={14} />;
+    return <Terminal size={14} />;
+  };
+
+  // Helper to normalize step event type and visual accent matching PLAN, ACT, OBSERVE, ERROR, REFLECTION, REPLAN, SUCCESS
+  const resolveStepMeta = (event, index, allEvents) => {
+    // Check if tool failure
+    if (
+      event.type === 'error' ||
+      (event.type === 'tool_result' && Boolean(event.error))
+    ) {
+      return {
+        typeLabel: 'ERROR',
+        accent: 'red',
+        icon: <AlertTriangle size={15} />,
+        statusLabel: 'RECOVERING',
+        isFailure: true,
+      };
+    }
+
+    // Check if reflection
+    if (event.type === 'reflection') {
+      return {
+        typeLabel: 'REFLECTION',
+        accent: 'amber',
+        icon: <Brain size={15} />,
+        statusLabel: 'RECOVERING',
+        isReflection: true,
+      };
+    }
+
+    // Check if new action / replanning after reflection
+    const prevWasReflection = index > 0 && allEvents[index - 1]?.type === 'reflection';
+    if (prevWasReflection && event.type === 'tool_call') {
+      return {
+        typeLabel: 'REPLAN',
+        accent: 'purple',
+        icon: <Search size={15} />,
+        statusLabel: 'USING TOOL',
+        isNewAction: true,
+      };
+    }
+
+    // Check if plan
+    if (event.type === 'plan') {
+      return {
+        typeLabel: 'PLAN',
+        accent: 'indigo',
+        icon: <Brain size={15} />,
+        statusLabel: 'THINKING',
+      };
+    }
+
+    // Check if standard tool call (ACT)
+    if (event.type === 'tool_call') {
+      return {
+        typeLabel: 'ACT',
+        accent: 'purple',
+        icon: getToolIcon(event.tool),
+        statusLabel: 'USING TOOL',
+      };
+    }
+
+    // Check if tool observation / result
+    if (event.type === 'tool_result') {
+      const isPass = event.data && (event.data.includes('passed') || event.data.includes('SUCCESS'));
+      if (isPass) {
+        return {
+          typeLabel: 'SUCCESS',
+          accent: 'green',
+          icon: <CheckCircle2 size={15} />,
+          statusLabel: 'OBSERVING',
+          isSuccess: true,
+        };
+      }
+      return {
+        typeLabel: 'OBSERVE',
+        accent: 'blue',
+        icon: <Eye size={15} />,
+        statusLabel: 'OBSERVING',
+      };
+    }
+
+    // Check if final
+    if (event.type === 'final') {
+      return {
+        typeLabel: 'FINAL RESULT',
+        accent: 'green',
+        icon: <ShieldCheck size={15} />,
+        statusLabel: 'COMPLETED',
+        isFinal: true,
+      };
+    }
+
+    return {
+      typeLabel: (event.type || 'STEP').toUpperCase(),
+      accent: 'indigo',
+      icon: <Sparkles size={15} />,
+      statusLabel: (event.status || 'THINKING').toUpperCase(),
+    };
+  };
 
   if (!events || events.length === 0) {
     return (
@@ -87,38 +173,53 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
         </div>
         <h3 className="empty-title">Awaiting Agent Dispatch</h3>
         <p className="trace-empty-text">
-          Select a demo scenario or enter your repository objective, then click{' '}
-          <strong>Analyze Repository & Run Agent</strong>. The progressive cognitive loop will stream live:
+          Enter an investigation task in the composer or run a demo scenario. The progressive
+          autonomous loop will stream live through all 9 stages:
         </p>
-        <div className="trace-loop-diagram">
+        <div className="trace-loop-diagram nine-stage-loop">
           <div className="loop-step">
-            <Brain size={14} />
-            <span>PLAN</span>
+            <Bug size={13} />
+            <span>01 USER TASK</span>
           </div>
-          <span className="loop-arrow">→</span>
+          <span className="loop-arrow">↓</span>
           <div className="loop-step">
-            <Terminal size={14} />
-            <span>ACT</span>
+            <Brain size={13} />
+            <span>02 AGENT PLANS</span>
           </div>
-          <span className="loop-arrow">→</span>
+          <span className="loop-arrow">↓</span>
           <div className="loop-step">
-            <Eye size={14} />
-            <span>OBSERVE</span>
+            <Terminal size={13} />
+            <span>03 AGENT USES TOOL</span>
           </div>
-          <span className="loop-arrow">→</span>
-          <div className="loop-step highlight-recover">
-            <RotateCcw size={14} />
-            <span>REFLECT</span>
-          </div>
-          <span className="loop-arrow">→</span>
+          <span className="loop-arrow">↓</span>
           <div className="loop-step">
-            <Terminal size={14} />
-            <span>NEW ACT</span>
+            <Eye size={13} />
+            <span>04 AGENT OBSERVES</span>
           </div>
-          <span className="loop-arrow">→</span>
-          <div className="loop-step highlight-success">
-            <CheckCircle2 size={14} />
-            <span>FINAL</span>
+          <span className="loop-arrow">↓</span>
+          <div className="loop-step error">
+            <AlertTriangle size={13} />
+            <span>05 TOOL FAILS</span>
+          </div>
+          <span className="loop-arrow">↓</span>
+          <div className="loop-step recovery">
+            <RotateCcw size={13} />
+            <span>06 AGENT REFLECTS</span>
+          </div>
+          <span className="loop-arrow">↓</span>
+          <div className="loop-step action">
+            <Search size={13} />
+            <span>07 AGENT CHOOSES ACTION</span>
+          </div>
+          <span className="loop-arrow">↓</span>
+          <div className="loop-step success">
+            <CheckCircle2 size={13} />
+            <span>08 SUCCESS</span>
+          </div>
+          <span className="loop-arrow">↓</span>
+          <div className="loop-step final">
+            <ShieldCheck size={13} />
+            <span>09 FINAL RESULT</span>
           </div>
         </div>
       </div>
@@ -126,198 +227,169 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
   }
 
   return (
-    <div className="agent-trace-timeline">
-      <div className="timeline-header-bar">
-        <div className="timeline-meta-left">
-          <div className="step-counter-tag">
-            <ListOrdered size={14} />
-            <span>{events.length} Cognitive Events</span>
-          </div>
-          <span className="timeline-subtitle">Sequential Agent Reasoning Trajectory</span>
-        </div>
-      </div>
+    <div className="vertical-execution-timeline-root">
+      <div className="timeline-rail-line" />
 
-      <div className="trace-timeline-stream">
-        {events.map((event, index) => {
-          const rawType = (event.type || 'plan').toLowerCase();
-
-          // Check if event represents a failure / error
-          const isFailure =
-            rawType === 'error' ||
-            (rawType === 'tool_result' && event.status === 'error') ||
-            (rawType === 'tool_result' && !!event.error);
-
-          const type = isFailure ? 'error' : rawType;
-
-          const config = EVENT_CONFIG[type] || {
-            icon: <Layers size={16} />,
-            label: type.toUpperCase(),
-            className: 'event-generic',
-          };
-
-          const stepNumber = event.step || index + 1;
-          const timestamp = event.timestamp || '';
-          const isRecoveryMoment = type === 'reflection' || (isFailure && !!event.recoveryPlan);
+      <div className="timeline-steps-stack">
+        {events.map((event, idx) => {
+          const stepNum = event.step || idx + 1;
+          const meta = resolveStepMeta(event, idx, events);
+          const isExpanded = Boolean(expandedDetails[stepNum]);
 
           return (
             <div
-              key={event.id || event.step || index}
-              className={`trace-node ${config.className} ${isFailure ? 'node-is-failure' : ''} ${
-                isRecoveryMoment ? 'node-is-recovery' : ''
-              }`}
+              key={`event-${stepNum}-${idx}`}
+              className={`timeline-step-card accent-${meta.accent} ${meta.isFailure ? 'step-failure-card' : ''} ${meta.isReflection ? 'step-reflection-card' : ''} ${meta.isSuccess ? 'step-success-card' : ''}`}
             >
-              {/* Timeline marker spine */}
-              <div className="node-marker-col">
-                <div
-                  className={`node-marker ${isFailure ? 'marker-failure' : ''} ${
-                    type === 'reflection' ? 'marker-reflection' : ''
-                  }`}
-                  title={`Step ${stepNumber}: ${config.label}`}
-                >
-                  <span className="marker-icon">{config.icon}</span>
+              {/* Left Timeline Rail Node */}
+              <div className="step-rail-node">
+                <div className={`node-circle-icon accent-${meta.accent}`}>
+                  {meta.icon}
                 </div>
-                {index < events.length - 1 && <div className="timeline-connector"></div>}
               </div>
 
-              {/* Node Card Content */}
-              <div className={`node-content-card ${isFailure ? 'content-card-failure' : ''}`}>
-                <div className="node-header">
-                  <div className="node-title-group">
-                    <span className="node-step-tag">#{stepNumber}</span>
-                    <span className={`node-type-badge type-${type}`}>
-                      {config.icon}
-                      <span>{config.label}</span>
+              {/* Step Card Content */}
+              <div className="step-card-main-body">
+                {/* Header Row: Step Number, Event Type, Tool Name, Status, Timestamp */}
+                <div className="step-card-header-line">
+                  <div className="header-meta-left">
+                    <span className="step-number-pill">
+                      STEP {stepNum.toString().padStart(2, '0')}
                     </span>
-
-                    {isFailure && (
-                      <span className="critical-moment-pill">
-                        <AlertTriangle size={12} />
-                        <span>FAILURE ENCOUNTERED</span>
+                    <span className={`event-type-badge ${meta.accent}`}>
+                      {meta.typeLabel}
+                    </span>
+                    {event.tool && (
+                      <span className="tool-name-badge">
+                        {getToolIcon(event.tool)}
+                        <span>{event.tool}</span>
                       </span>
                     )}
-
-                    {type === 'reflection' && (
-                      <span className="cognitive-pivot-pill">
-                        <Sparkles size={12} />
-                        <span>AUTONOMOUS ADAPTATION</span>
-                      </span>
-                    )}
-
-                    {event.title && <span className="node-custom-title">{event.title}</span>}
                   </div>
 
-                  {timestamp && (
-                    <div className="node-timestamp-box">
-                      <Clock size={12} />
-                      <span className="node-timestamp">{timestamp}</span>
-                    </div>
-                  )}
+                  <div className="header-meta-right">
+                    <span className={`step-status-chip ${meta.accent}`}>
+                      {meta.statusLabel}
+                    </span>
+                    <span className="step-timestamp-mono">
+                      <Clock size={11} />
+                      <span>{event.timestamp || '00:00:00'}</span>
+                    </span>
+                  </div>
                 </div>
 
-                <div className="node-body">
-                  {/* 1. PLAN EVENT */}
-                  {type === 'plan' && (
-                    <div className="plan-content">
-                      <p className="plan-text">{event.message || event.content || event.plan}</p>
-                      {event.subgoals && (
-                        <div className="plan-subgoals">
-                          <span className="subgoals-label">Cognitive Sub-goals:</span>
-                          <ul>
-                            {event.subgoals.map((g, gi) => (
-                              <li key={gi}>
-                                <span className="subgoal-bullet"></span>
-                                <span>{g}</span>
-                              </li>
-                            ))}
-                          </ul>
+                {/* Primary Message (AI Thought or Action Description) */}
+                <div className="step-message-row">
+                  {event.message && (
+                    <p className="step-message-text">{event.message}</p>
+                  )}
+
+                  {/* Special Callouts for Failure & Recovery */}
+                  {meta.isFailure && (
+                    <div className="failure-alert-box">
+                      <div className="failure-alert-header">
+                        <AlertTriangle size={14} className="alert-icon" />
+                        <strong>Tool Failure Encountered (Test Assertion / KeyError)</strong>
+                      </div>
+                      <p className="failure-subtext">
+                        {event.error || 'The command returned a non-zero exit code.'}
+                      </p>
+                    </div>
+                  )}
+
+                  {meta.isReflection && (
+                    <div className="reflection-alert-box">
+                      <div className="reflection-alert-header">
+                        <Sparkles size={14} className="reflection-icon" />
+                        <strong>Autonomous Reflection & Self-Correction</strong>
+                      </div>
+                      <p className="reflection-subtext">
+                        {event.hypothesis || event.message}
+                      </p>
+                    </div>
+                  )}
+
+                  {event.recoveryPlan && (
+                    <div className="recovery-plan-box">
+                      <span className="plan-label">RECOVERY PLAN:</span>
+                      <p className="plan-text">{event.recoveryPlan}</p>
+                    </div>
+                  )}
+
+                  {/* Final Result Card */}
+                  {meta.isFinal && (
+                    <div className="final-resolution-box">
+                      <div className="final-box-header">
+                        <CheckCircle2 size={16} className="final-check-icon" />
+                        <strong>Root Cause Verified & Resolved</strong>
+                      </div>
+                      <p className="final-summary-text">
+                        {event.summary || 'All reproduction assertions passing with zero regressions.'}
+                      </p>
+                      {event.filesChanged && (
+                        <div className="final-files-pill">
+                          <FileCode size={13} />
+                          <span>Files modified: {event.filesChanged.join(', ')}</span>
                         </div>
                       )}
                     </div>
                   )}
+                </div>
 
-                  {/* 2. TOOL CALL EVENT */}
-                  {type === 'tool_call' && (
-                    <ToolCall
-                      toolName={event.tool || event.toolName}
-                      arguments={event.arguments || event.args}
-                      status={event.status || 'EXECUTING'}
-                      data={event.payload || event}
-                    />
-                  )}
+                {/* Details Section (Structured, Not Raw Logs) */}
+                {(event.arguments || event.data || event.subgoals) && (
+                  <div className="step-details-container">
+                    <button
+                      type="button"
+                      className="details-toggle-btn"
+                      onClick={() => toggleDetails(stepNum)}
+                    >
+                      {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                      <span>{isExpanded ? 'Hide structured details' : 'View structured details'}</span>
+                    </button>
 
-                  {/* 3. TOOL RESULT / OBSERVATION EVENT */}
-                  {type === 'tool_result' && !isFailure && (
-                    <div className="observation-content">
-                      <div className="observation-header">
-                        <div className="obs-header-left">
-                          <Eye size={14} />
-                          <span className="obs-label">
-                            Output from <code>{event.tool || 'system'}</code>
-                          </span>
-                        </div>
-                        {event.exitCode !== undefined && (
-                          <span className={`exit-code-tag code-${event.exitCode === 0 ? '0' : 'err'}`}>
-                            exit {event.exitCode}
-                          </span>
+                    {isExpanded && (
+                      <div className="step-expanded-details animate-fade">
+                        {/* Subgoals */}
+                        {event.subgoals && (
+                          <div className="details-subgoals-list">
+                            <span className="details-subhead">Formulated Sub-Goals:</span>
+                            <ul>
+                              {event.subgoals.map((g, gi) => (
+                                <li key={gi}>{g}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Tool Arguments */}
+                        {event.arguments && (
+                          <div className="details-arguments-block">
+                            <span className="details-subhead">Tool Arguments:</span>
+                            <pre className="details-code-pre">
+                              <code>{JSON.stringify(event.arguments, null, 2)}</code>
+                            </pre>
+                          </div>
+                        )}
+
+                        {/* Output Data */}
+                        {event.data && (
+                          <div className="details-data-block">
+                            <span className="details-subhead">Observation Telemetry:</span>
+                            <pre className="details-code-pre">
+                              <code>{event.data}</code>
+                            </pre>
+                          </div>
                         )}
                       </div>
-                      <pre className="observation-pre">
-                        {event.data ||
-                          (typeof event.output === 'string'
-                            ? event.output
-                            : event.content || JSON.stringify(event, null, 2))}
-                      </pre>
-                    </div>
-                  )}
-
-                  {/* 4. ERROR CARD EVENT */}
-                  {isFailure && (
-                    <ErrorCard
-                      tool={event.tool || 'shell'}
-                      error={event.error || event.message || event.data || 'Command failed with exit code 1'}
-                      recoveryPlan={event.recoveryPlan || event.recovery}
-                      data={event}
-                    />
-                  )}
-
-                  {/* 5. REFLECTION EVENT */}
-                  {type === 'reflection' && (
-                    <div className="reflection-content">
-                      <div className="reflection-quote-border">
-                        <div className="reflection-header-row">
-                          <Sparkles size={15} />
-                          <span className="reflection-heading">Self-Correction & Diagnostic Reasoning:</span>
-                        </div>
-                        <p className="reflection-text">
-                          {event.message || event.content || event.reflection}
-                        </p>
-                      </div>
-                      {event.hypothesis && (
-                        <div className="hypothesis-box">
-                          <strong className="hypo-label">Updated Diagnostic Hypothesis:</strong>
-                          <span className="hypo-text">{event.hypothesis}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 6. FINAL RESULT EVENT */}
-                  {type === 'final' && (
-                    <FinalResult
-                      response={event.message || event.response || event.content || event.summary}
-                      verification={event.verification}
-                      filesModified={event.filesModified || event.files}
-                      result={event.result || event.payload}
-                      onStartNewTask={onStartNewTask}
-                    />
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
-        {/* Invisible anchor for automatic scrolling */}
-        <div ref={traceBottomRef} style={{ height: 1 }} />
+        <div ref={traceBottomRef} />
       </div>
     </div>
   );

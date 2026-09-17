@@ -37,6 +37,7 @@ export default function Sidebar({
   onOpenDocs,
   onOpenSettings,
   onOpenLogin,
+  onLogout,
   isCollapsed,
   setIsCollapsed,
   recentRunsCount = 0,
@@ -61,6 +62,11 @@ export default function Sidebar({
     logout();
     setShowUserMenu(false);
     toast.info('Signed out of session');
+    if (onLogout) {
+      onLogout();
+    } else {
+      setActiveView('landing');
+    }
   };
 
   // Nav Group 1: Workspace, Runs, Projects

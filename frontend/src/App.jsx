@@ -17,6 +17,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AuthProvider, useAuth } from './services/authContext.jsx';
 import { ToastProvider, useToast } from './services/ToastContext.jsx';
 import LandingPage from './components/LandingPage.jsx';
+import LoginScreen from './components/LoginScreen.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Navbar from './components/Navbar.jsx';
 import TaskInput from './components/TaskInput.jsx';
@@ -336,7 +337,7 @@ function AppContent() {
         setApiEndpoint={setApiEndpoint}
       />
 
-      {/* 3. Conditional View: Landing vs 3-Column Workspace */}
+      {/* 3. Conditional View: Landing vs Login Screen vs 3-Column Workspace */}
       {currentView === 'landing' ? (
         <LandingPage
           onStartDebugging={() => {
@@ -352,9 +353,17 @@ function AppContent() {
               scenario: SCENARIOS.FAILURE_RECOVERY,
             });
           }}
-          onOpenLogin={() => setIsLoginOpen(true)}
+          onOpenLogin={() => setCurrentView('login')}
           onOpenDocs={() => setIsDocsOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+      ) : currentView === 'login' ? (
+        <LoginScreen
+          onLoginSuccess={() => {
+            setCurrentView('workspace');
+            setWorkspaceMode('composer');
+          }}
+          onBackToLanding={() => setCurrentView('landing')}
         />
       ) : (
         /* ==================================================================
@@ -367,11 +376,14 @@ function AppContent() {
             activeView={currentView}
             setActiveView={(view) => {
               if (view === 'landing') setCurrentView('landing');
+              if (view === 'login') setCurrentView('login');
+              if (view === 'workspace') setCurrentView('workspace');
             }}
             onNewTask={handleNewTask}
             onOpenDocs={() => setIsDocsOpen(true)}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenLogin={() => setIsLoginOpen(true)}
+            onOpenLogin={() => setCurrentView('login')}
+            onLogout={() => setCurrentView('landing')}
             isCollapsed={isSidebarCollapsed}
             setIsCollapsed={setIsSidebarCollapsed}
             recentRunsCount={recentRuns.length}
@@ -395,7 +407,7 @@ function AppContent() {
               }
               onStop={handleStopSimulation}
               onReset={handleReset}
-              onOpenLogin={() => setIsLoginOpen(true)}
+              onOpenLogin={() => setCurrentView('login')}
               onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               onReturnLanding={() => setCurrentView('landing')}
               activeTask={activeTask}
@@ -507,6 +519,7 @@ function AppContent() {
                   traceEvents={traceEvents}
                   isRunning={isRunningMock}
                   onStop={handleStopSimulation}
+                  onReset={handleReset}
                   onRunAgain={() =>
                     handleRunAgent({
                       repository: activeTask?.repository,
