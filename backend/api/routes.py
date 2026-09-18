@@ -48,7 +48,10 @@ class ResilientLLM(LLMInterface):
                     last_err = exc
                     continue
                 raise
-        raise last_err
+        if last_err is not None:
+            raise last_err
+        raise RuntimeError("All candidate LLM models failed to generate a response.")
+
 
 
 @router.post("/agent/run", response_model=AgentRunResponse, tags=["Agent"])
