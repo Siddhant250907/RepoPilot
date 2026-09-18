@@ -98,35 +98,8 @@ export default function AppleHeroPedestal({
           }}
         />
 
-        {/* ── Apple-Style Inner Sub-Header ── */}
-        <div className="relative z-20 flex items-center justify-between px-8 py-5 border-b border-white/5">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-white flex items-center justify-center">
-              <span className="text-black text-[9px] font-black mono">RP</span>
-            </div>
-            <span className="text-white/90 text-xs font-bold tracking-tight">RepoPilot</span>
-          </div>
-
-          <div className="hidden md:flex items-center gap-7 text-[11px] text-[#86868B] font-medium tracking-wide">
-            <span className="hover:text-white transition-colors cursor-pointer">Autonomous Core</span>
-            <span className="hover:text-white transition-colors cursor-pointer">Architecture</span>
-            <span className="hover:text-white transition-colors cursor-pointer">Failure Engine</span>
-            <span className="hover:text-white transition-colors cursor-pointer">Verification</span>
-            <span className="hover:text-white transition-colors cursor-pointer">Benchmarks</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs cursor-pointer hover:bg-white/20 transition-colors">
-              ⌕
-            </div>
-            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs cursor-pointer hover:bg-white/20 transition-colors">
-              ⬡
-            </div>
-          </div>
-        </div>
-
         {/* ── Main Stage Area ── */}
-        <div className="relative min-h-[580px] sm:min-h-[640px] flex flex-col items-center justify-center px-4 overflow-hidden">
+        <div className="relative min-h-[580px] sm:min-h-[640px] flex flex-col items-center justify-center px-4 overflow-hidden pt-12 pb-6">
           {/* Eyebrow Headline */}
           <div className="relative z-20 text-center mb-2">
             <span className="text-xs sm:text-sm font-medium tracking-wide text-[#86868B]">
@@ -329,20 +302,17 @@ export default function AppleHeroPedestal({
             </svg>
           </div>
 
-          {/* ── Sub-Navigation Pill (Exact HomePod Reference Style) ── */}
-          <div className="relative z-30 mt-4 mb-6 flex items-center gap-5">
-            <div className="glass-pill px-5 py-2 flex items-center gap-6 text-xs text-[#86868B] font-medium shadow-2xl">
-              <span className="hover:text-white transition-colors cursor-pointer">Overview</span>
-              <span className="hover:text-white transition-colors cursor-pointer">Tech Specs</span>
-              <button
-                type="button"
-                data-hover
-                onClick={onStartDemo}
-                className="bg-white text-black font-bold px-4 py-1 rounded-full text-xs hover:bg-white/90 transition-all hover:scale-105 cursor-pointer shadow-md"
-              >
-                Start Debugging
-              </button>
-            </div>
+          {/* ── Call to Action Pill ── */}
+          <div className="relative z-30 mt-6 mb-6 flex items-center justify-center">
+            <button
+              type="button"
+              data-hover
+              onClick={onStartDemo}
+              className="bg-white text-black font-bold px-7 py-2.5 rounded-full text-xs hover:bg-white/90 transition-all duration-200 hover:scale-105 cursor-pointer shadow-2xl flex items-center gap-2 border-0"
+            >
+              <span>Start Debugging</span>
+              <span className="text-black/60 font-semibold">→</span>
+            </button>
           </div>
         </div>
       </div>

@@ -124,3 +124,73 @@ export async function checkBackendHealth(): Promise<{ ok: boolean; data?: Health
     };
   }
 }
+
+export interface CodeDebugParams {
+  code: string;
+  language?: string;
+  error_message?: string;
+  context?: string;
+}
+
+export interface CodeDebugResult {
+  status: 'success' | 'error';
+  detected_language: string;
+  bug_summary: string;
+  root_cause: string;
+  debugged_code: string;
+  diff?: string | null;
+  changes_explained: string[];
+  tips?: string[];
+  error?: string | null;
+}
+
+/**
+ * Sends a code snippet from ANY language to RepoPilot for instant diagnosis, root-cause
+ * analysis, production-ready debugged code, and unified diff output.
+ */
+export async function debugCodeSnippet({
+  code,
+  language = 'auto',
+  error_message,
+  context,
+}: CodeDebugParams): Promise<CodeDebugResult> {
+  const trimmedCode = code?.trim();
+  if (!trimmedCode) {
+    throw new Error('Code snippet cannot be empty.');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch('/api/debug/code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        code: trimmedCode,
+        language: language || 'auto',
+        error_message: error_message?.trim() || null,
+        context: context?.trim() || null,
+      }),
+    });
+  } catch (networkErr: any) {
+    throw new Error(
+      `Network error communicating with RepoPilot backend: ${networkErr?.message || 'Server unreachable'}. Please verify FastAPI is running.`
+    );
+  }
+
+  let data: any;
+  try {
+    const text = await response.text();
+    data = JSON.parse(text);
+  } catch (parseErr) {
+    throw new Error(`Failed to parse backend response (HTTP ${response.status})`);
+  }
+
+  if (!response.ok || data.status === 'error') {
+    throw new Error(data?.detail || data?.error || `Debugging failed with HTTP ${response.status}`);
+  }
+
+  return data as CodeDebugResult;
+}
+

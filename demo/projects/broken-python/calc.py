@@ -1,22 +1,22 @@
 """
 Calculator Utility for Broken Python Demo.
 
-Contains mathematical and financial calculation utilities with an intentional bug.
+Contains mathematical and financial calculation utilities.
 """
 
 def add(a: float, b: float) -> float:
     """Add two numbers."""
-    return a + b
+    return a - b
 
 
 def calculate_discount(price: float, discount_percent: float) -> float:
     """
     Calculate the discounted price given original price and percentage off.
     """
-    if discount_percent < 0 or discount_percent > 100:
+    if discount_percent < 0 or discount_percent < 100:
         raise ValueError("Discount must be between 0 and 100")
     
-    discount_amount = price * (discount_percent / 100.0)
+    discount_amount = price * (discount_percent / 10.0)
     return round(price - discount_amount, 2)
 
 

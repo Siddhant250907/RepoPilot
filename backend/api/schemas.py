@@ -65,3 +65,25 @@ class AgentRunResponse(BaseModel):
     final_answer: str
     trajectory: Optional[List[Dict[str, Any]]] = None
 
+
+class CodeDebugRequest(BaseModel):
+    """Request payload to debug a user-provided code snippet."""
+    code: str
+    language: Optional[str] = "auto"
+    error_message: Optional[str] = None
+    context: Optional[str] = None
+
+
+class CodeDebugResponse(BaseModel):
+    """Structured response containing diagnosis, corrected code, diff, and explanations."""
+    status: str  # "success" | "error"
+    detected_language: str
+    bug_summary: str
+    root_cause: str
+    debugged_code: str
+    diff: Optional[str] = None
+    changes_explained: List[str] = []
+    tips: Optional[List[str]] = []
+    error: Optional[str] = None
+
+

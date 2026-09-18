@@ -17,6 +17,17 @@ interface LandingProps {
    Apple Studio Top Navbar
 ───────────────────────────────────────────────────────── */
 function Navbar({ compact, onStartDemo }: { compact: boolean; onStartDemo: (taskPreset?: string) => void }) {
+  const scrollTo = (id: string) => {
+    if (id === 'overview') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 transition-all duration-300 pointer-events-none"
@@ -26,42 +37,36 @@ function Navbar({ compact, onStartDemo }: { compact: boolean; onStartDemo: (task
         className="glass-pill rounded-full flex items-center justify-between gap-6 transition-all duration-300 w-full max-w-3xl pointer-events-auto shadow-2xl px-6 py-3 border border-white/10"
       >
         {/* Apple / RP Logo */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => scrollTo('overview')}
+          className="flex items-center gap-2.5 shrink-0 bg-transparent border-0 cursor-pointer text-left"
+          title="RepoPilot Home"
+        >
           <div className="w-6 h-6 rounded-md bg-white flex items-center justify-center shadow-md">
             <span className="text-black text-[10px] font-black mono">RP</span>
           </div>
           <span className="font-bold text-white text-xs tracking-tight">RepoPilot</span>
-        </div>
+        </button>
 
         {/* Apple Style Nav Links */}
         <div className="hidden md:flex items-center gap-7">
           {[
-            { label: 'Overview', href: '#overview' },
-            { label: 'Architecture', href: '#architecture' },
-            { label: 'Recovery', href: '#recovery' },
-            { label: 'Workspace', href: '#workspace' },
+            { label: 'Overview', id: 'overview' },
+            { label: 'Architecture', id: 'architecture' },
+            { label: 'Recovery', id: 'recovery' },
+            { label: 'Workspace', id: 'workspace' },
           ].map(l => (
-            <a
+            <button
               key={l.label}
-              href={l.href}
+              type="button"
+              onClick={() => scrollTo(l.id)}
               data-hover
-              className="text-xs tracking-wide text-[#86868B] hover:text-white transition-colors duration-150 font-medium"
+              className="text-xs tracking-wide text-[#86868B] hover:text-white transition-colors duration-150 font-medium bg-transparent border-0 cursor-pointer"
             >
               {l.label}
-            </a>
+            </button>
           ))}
-        </div>
-
-        {/* CTA */}
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            data-hover
-            onClick={() => onStartDemo()}
-            className="bg-white text-black rounded-full text-xs font-bold px-4 py-1.5 hover:bg-white/90 transition-all duration-200 hover:scale-105 cursor-pointer shadow-md"
-          >
-            Start Debugging →
-          </button>
         </div>
       </nav>
     </header>

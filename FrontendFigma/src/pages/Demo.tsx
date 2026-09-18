@@ -3,9 +3,10 @@ import TiltCard from '../components/TiltCard';
 import TechnicalSurface from '../components/TechnicalSurface';
 import { ColorTheme } from '../components/AppleHeroPedestal';
 import { runAgentTask, checkBackendHealth, BackendEvent } from '../services/api';
+import CodeDebuggerStudio from '../components/CodeDebuggerStudio';
 
 export type Phase = 'compose' | 'running' | 'complete';
-export type TabId = 'new' | 'ws' | 'runs' | 'repos' | 'set';
+export type TabId = 'new' | 'ws' | 'debug' | 'runs' | 'repos' | 'set';
 
 export interface TraceStep {
   id: number;
@@ -240,12 +241,29 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
 /* ─────────────────────────────────────────────────────────
    Left Sidebar: Apple Dark Glass
 ───────────────────────────────────────────────────────── */
-const NAV_ITEMS = [
-  { icon: '⊕', label: 'New Task', id: 'new' as TabId },
-  { icon: '⬡', label: 'Workspace', id: 'ws' as TabId },
-  { icon: '▶', label: 'Runs', id: 'runs' as TabId },
-  { icon: '◇', label: 'Repositories', id: 'repos' as TabId },
-  { icon: '⚙', label: 'Settings', id: 'set' as TabId },
+const NAV_ITEMS: { icon: React.ReactNode; label: string; id: TabId }[] = [
+  { icon: '⬡', label: 'Workspace', id: 'ws' },
+  {
+    icon: (
+      <svg
+        className="w-3.5 h-3.5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polyline points="16 18 22 12 16 6" />
+        <polyline points="8 6 2 12 8 18" />
+      </svg>
+    ),
+    label: 'Code Debugger',
+    id: 'debug',
+  },
+  { icon: '▶', label: 'Runs', id: 'runs' },
+  { icon: '◇', label: 'Repositories', id: 'repos' },
+  { icon: '⚙', label: 'Settings', id: 'set' },
 ];
 
 function Sidebar({
@@ -1627,10 +1645,15 @@ export default function Demo({
   mouseY?: number;
   activeColor?: ColorTheme;
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>('ws');
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    if (initialTask === '__DEBUG_STUDIO__') return 'debug';
+    return 'ws';
+  });
   const [phase, setPhase] = useState<Phase>('compose');
   const [text, setText] = useState(
-    initialTask !== undefined && initialTask !== '' ? initialTask : DEFAULT_TASK
+    initialTask !== undefined && initialTask !== '' && initialTask !== '__DEBUG_STUDIO__'
+      ? initialTask
+      : DEFAULT_TASK
   );
   const [visibleSteps, setVisibleSteps] = useState<TraceStep[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
@@ -1921,6 +1944,7 @@ export default function Demo({
             <div className="h-4 w-px bg-white/10" />
             <span className="text-xs font-bold text-white tracking-tight uppercase mono">
               {activeTab === 'ws' && `Workspace / ${selectedRepo.name}`}
+              {activeTab === 'debug' && 'Universal Code Debugger'}
               {activeTab === 'runs' && 'Runs / Execution History'}
               {activeTab === 'repos' && 'Repositories / Workspace Targets'}
               {activeTab === 'set' && 'Settings / Engine Preferences'}
@@ -2010,6 +2034,17 @@ export default function Demo({
                   <CompleteView onReset={reset} telemetry={runTelemetry} />
                 )}
               </>
+            )}
+
+            {/* CODE DEBUGGER TAB */}
+            {activeTab === 'debug' && (
+              <CodeDebuggerStudio
+                onApplyToWorkspace={(fixedCode, lang) => {
+                  setText(`Apply debugged ${lang} code:\n${fixedCode}`);
+                  setPhase('compose');
+                  setActiveTab('ws');
+                }}
+              />
             )}
 
             {/* RUNS TAB */}
