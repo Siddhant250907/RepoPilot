@@ -9,6 +9,7 @@ Responsibilities:
 - Expose real agent trace events (PLAN, TOOL_CALL, TOOL_RESULT, REFLECTION, FINAL) to the frontend.
 """
 
+import json
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from backend.api.schemas import (
@@ -70,9 +71,16 @@ async def run_agent(request: AgentRunRequest):
             status_code=500,
             detail="Gemini API key is not configured in backend environment (.env).",
         )
+    target_workspace = None
+    if request.target_repo_path and str(request.target_repo_path).strip() not in (".", ""):
+        from pathlib import Path
+        p = Path(request.target_repo_path)
+        if not p.is_absolute():
+            p = (Path.cwd() / p).resolve()
+        if p.exists():
+            target_workspace = p
 
-
-    registry = create_default_registry()
+    registry = create_default_registry(workspace_root=target_workspace)
     event_bus = EventBus()
     raw_events = []
     event_bus.subscribe(lambda evt: raw_events.append(evt))
@@ -152,7 +160,13 @@ async def run_agent(request: AgentRunRequest):
                     or tool_res.get("result")
                     or tool_res
                 )
-                data_str = str(data_val)
+                if isinstance(data_val, (dict, list)):
+                    try:
+                        data_str = json.dumps(data_val, default=str, indent=2)
+                    except Exception:
+                        data_str = str(data_val)
+                else:
+                    data_str = str(data_val)
             else:
                 data_str = str(tool_res)
 

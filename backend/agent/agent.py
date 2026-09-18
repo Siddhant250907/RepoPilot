@@ -14,7 +14,8 @@ Responsibilities:
 import inspect
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from backend.agent.events import AgentEvent, EventBus, EventType
 from backend.agent.llm import LLMInterface
@@ -30,7 +31,7 @@ from backend.tools.shell_tool import ShellTool
 logger = logging.getLogger("RepoPilot.AgentCore")
 
 
-def create_default_registry() -> ToolRegistry:
+def create_default_registry(workspace_root: Optional[Union[str, Path]] = None) -> ToolRegistry:
     """
     Instantiate and populate a ToolRegistry with Person 2's core tools:
     - FileTool (name: 'file_tool')
@@ -39,8 +40,8 @@ def create_default_registry() -> ToolRegistry:
     - CalculatorTool (name: 'calculator_tool')
     """
     registry = ToolRegistry()
-    registry.register(FileTool())
-    registry.register(ShellTool())
+    registry.register(FileTool(workspace_root=workspace_root))
+    registry.register(ShellTool(workspace_root=workspace_root))
     registry.register(SearchTool())
     registry.register(CalculatorTool())
     return registry
