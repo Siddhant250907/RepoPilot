@@ -11,10 +11,20 @@ TODO:
 """
 
 import os
+import sys
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load .env file if present
 load_dotenv()
+
+# Ensure local virtual environment binaries are in PATH for subprocess tools
+for candidate in [
+    Path(sys.prefix) / ("Scripts" if os.name == "nt" else "bin"),
+    Path(__file__).resolve().parent.parent / ".venv" / ("Scripts" if os.name == "nt" else "bin"),
+]:
+    if candidate.exists() and str(candidate) not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = str(candidate) + os.pathsep + os.environ.get("PATH", "")
 
 
 class Settings:
@@ -26,11 +36,12 @@ class Settings:
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
     # LLM settings
-    LLM_API_KEY: str = os.getenv("LLM_API_KEY", "")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+    LLM_API_KEY: str = os.getenv("LLM_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemini-3.5-flash")
 
     # Search Tool settings
     SEARCH_API_KEY: str = os.getenv("SEARCH_API_KEY", "")
 
 
 settings = Settings()
+

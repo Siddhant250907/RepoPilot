@@ -22,6 +22,35 @@ from backend.api.schemas import (
 router = APIRouter()
 
 
+from backend.agent.llm import LLMInterface
+
+
+class ResilientLLM(LLMInterface):
+    """
+    Subclass of LLMInterface providing automatic failover across candidate Gemini models
+    (gemini-3.5-flash, gemini-flash-latest, gemini-3.5-flash-lite) if free-tier 429 rate
+    limits or 503 high demand errors are encountered.
+    """
+
+    FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.5-flash-lite"]
+
+    async def generate(self, *args, **kwargs):
+        last_err = None
+        models_to_try = [self.model] + [m for m in self.FALLBACK_MODELS if m != self.model]
+        for m in models_to_try:
+            self.model = m
+            self.model_name = m
+            try:
+                return await super().generate(*args, **kwargs)
+            except Exception as exc:
+                err_str = str(exc)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "503" in err_str:
+                    last_err = exc
+                    continue
+                raise
+        raise last_err
+
+
 @router.post("/agent/run", response_model=AgentRunResponse, tags=["Agent"])
 async def run_agent(request: AgentRunRequest):
     """
@@ -30,16 +59,16 @@ async def run_agent(request: AgentRunRequest):
     """
     from backend.agent.agent import AgentCore, create_default_registry
     from backend.agent.events import EventBus, EventType
-    from backend.agent.llm import LLMInterface
     from backend.agent.memory import AgentMemory
     from backend.agent.planner import Planner
 
-    llm = LLMInterface()
+    llm = ResilientLLM()
     if not llm.api_key:
         raise HTTPException(
             status_code=500,
             detail="Gemini API key is not configured in backend environment (.env).",
         )
+
 
     registry = create_default_registry()
     event_bus = EventBus()
