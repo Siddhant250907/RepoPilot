@@ -30,3 +30,7 @@ build/
 # Operating System
 .DS_Store
 Thumbs.db
+
+# User Repositories & Sandboxes
+workspace/user_repos/
+workspace/

@@ -194,3 +194,144 @@ export async function debugCodeSnippet({
   return data as CodeDebugResult;
 }
 
+export interface UserRepoMetadata {
+  id: string;
+  name: string;
+  path: string;
+  branch: string;
+  description: string;
+  techStack: string;
+  badge: string;
+  badgeColor: string;
+  recommendedPreset: string;
+}
+
+/**
+ * Upload a .zip repository archive to the backend.
+ */
+export async function uploadRepositoryArchive(file: File, name?: string): Promise<UserRepoMetadata> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (name?.trim()) {
+    formData.append('name', name.trim());
+  }
+
+  let response: Response;
+  try {
+    response = await fetch('/api/repos/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  } catch (err: any) {
+    throw new Error(`Failed to upload repository archive: ${err?.message || 'Network error'}`);
+  }
+
+  if (!response.ok) {
+    const errText = await response.text();
+    let msg = `Upload failed (HTTP ${response.status})`;
+    try {
+      const parsed = JSON.parse(errText);
+      if (parsed.detail) msg = parsed.detail;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  return response.json();
+}
+
+/**
+ * Upload a repository folder (directory containing multiple files) to the backend.
+ */
+export async function uploadRepositoryFolder(files: FileList | File[], folderName?: string): Promise<UserRepoMetadata> {
+  const formData = new FormData();
+  let baseFolder = folderName?.trim() || '';
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const relPath = (file as any).webkitRelativePath || file.name;
+    // Skip massive dependency and cache folders
+    if (
+      relPath.includes('node_modules/') ||
+      relPath.includes('.git/') ||
+      relPath.includes('__pycache__/') ||
+      relPath.includes('.venv/') ||
+      relPath.includes('/venv/')
+    ) {
+      continue;
+    }
+    if (!baseFolder && relPath.includes('/')) {
+      baseFolder = relPath.split('/')[0];
+    }
+    formData.append('files', file);
+    formData.append('paths', relPath);
+  }
+
+  if (baseFolder) {
+    formData.append('name', baseFolder);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch('/api/repos/upload-folder', {
+      method: 'POST',
+      body: formData,
+    });
+  } catch (err: any) {
+    throw new Error(`Failed to upload repository folder: ${err?.message || 'Network error'}`);
+  }
+
+  if (!response.ok) {
+    const errText = await response.text();
+    let msg = `Folder upload failed (HTTP ${response.status})`;
+    try {
+      const parsed = JSON.parse(errText);
+      if (parsed.detail) msg = parsed.detail;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  return response.json();
+}
+
+/**
+ * Connect an existing local directory as a target repository.
+ */
+export async function connectLocalDirectory(localPath: string, name?: string): Promise<UserRepoMetadata> {
+  let response: Response;
+  try {
+    response = await fetch('/api/repos/connect-local', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ local_path: localPath.trim(), name: name?.trim() || null }),
+    });
+  } catch (err: any) {
+    throw new Error(`Failed to connect local directory: ${err?.message || 'Network error'}`);
+  }
+
+  if (!response.ok) {
+    const errText = await response.text();
+    let msg = `Connection failed (HTTP ${response.status})`;
+    try {
+      const parsed = JSON.parse(errText);
+      if (parsed.detail) msg = parsed.detail;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  return response.json();
+}
+
+/**
+ * List previously uploaded user repositories.
+ */
+export async function fetchUserRepositories(): Promise<UserRepoMetadata[]> {
+  try {
+    const response = await fetch('/api/repos/user-repos');
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.repositories || [];
+  } catch {
+    return [];
+  }
+}
+

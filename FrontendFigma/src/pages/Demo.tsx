@@ -2,7 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import TiltCard from '../components/TiltCard';
 import TechnicalSurface from '../components/TechnicalSurface';
 import { ColorTheme } from '../components/AppleHeroPedestal';
-import { runAgentTask, checkBackendHealth, BackendEvent } from '../services/api';
+import {
+  runAgentTask,
+  checkBackendHealth,
+  uploadRepositoryFolder,
+  uploadRepositoryArchive,
+  connectLocalDirectory,
+  fetchUserRepositories,
+  BackendEvent,
+} from '../services/api';
 import CodeDebuggerStudio from '../components/CodeDebuggerStudio';
 
 export type Phase = 'compose' | 'running' | 'complete';
@@ -38,6 +46,7 @@ export interface RepositoryInfo {
   badge: string;
   badgeColor: string;
   recommendedPreset: string;
+  isCustom?: boolean;
 }
 
 export interface RunRecord {
@@ -549,6 +558,9 @@ function ComposeView({
   selectedBranch,
   onSelectBranch,
   reposList,
+  uploadedRepoBanner,
+  onDismissBanner,
+  onOpenFolderUpload,
 }: {
   text: string;
   onTextChange: (val: string) => void;
@@ -560,6 +572,9 @@ function ComposeView({
   selectedBranch: string;
   onSelectBranch: (branch: string) => void;
   reposList: RepositoryInfo[];
+  uploadedRepoBanner?: string | null;
+  onDismissBanner?: () => void;
+  onOpenFolderUpload?: () => void;
 }) {
   const [repoDropdownOpen, setRepoDropdownOpen] = useState(false);
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
@@ -589,17 +604,30 @@ function ComposeView({
               <span className="status-dot bg-[#52D123]" />
               Investigation Prompt
             </div>
-            {text && (
-              <button
-                type="button"
-                data-hover
-                onClick={() => onTextChange('')}
-                className="text-xs text-[#86868B] hover:text-[#FF453A] mono transition-colors cursor-pointer flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-white/5"
-                title="Clear input to write your own custom task"
-              >
-                <span>✕</span> Clear for Custom Task
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {onOpenFolderUpload && (
+                <button
+                  type="button"
+                  data-hover
+                  onClick={onOpenFolderUpload}
+                  className="text-xs text-[#52D123] hover:text-black hover:bg-[#52D123] bg-[#52D123]/10 border border-[#52D123]/30 mono font-semibold transition-all cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                  title="Upload a project folder from your computer"
+                >
+                  <span>📁</span> Upload Folder
+                </button>
+              )}
+              {text && (
+                <button
+                  type="button"
+                  data-hover
+                  onClick={() => onTextChange('')}
+                  className="text-xs text-[#86868B] hover:text-[#FF453A] mono transition-colors cursor-pointer flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-white/5"
+                  title="Clear input to write your own custom task"
+                >
+                  <span>✕</span> Clear for Custom Task
+                </button>
+              )}
+            </div>
           </div>
           <h1
             className="font-extrabold text-white tracking-tight mb-2"
@@ -608,7 +636,7 @@ function ComposeView({
             What should RepoPilot investigate?
           </h1>
           <p className="text-[#86868B] text-sm">
-            Type any custom debugging task below, or choose a verified passing task preset.
+            Targeting <span className="text-white font-semibold">{selectedRepo.name}</span>. Type any custom debugging task below, or choose a preset.
           </p>
         </div>
 
@@ -633,12 +661,47 @@ function ComposeView({
           </div>
         )}
 
+        {/* Greenish Uploaded Repo Notification Banner */}
+        {uploadedRepoBanner && (
+          <div className="mb-4 px-4 py-3 rounded-2xl bg-[#52D123]/10 border border-[#52D123]/40 flex items-center justify-between shadow-[0_0_25px_rgba(82,209,35,0.18)] animate-step-in">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#52D123] animate-pulse shrink-0" />
+              <span className="mono text-xs md:text-sm font-bold text-[#52D123] tracking-wide">
+                {uploadedRepoBanner}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {selectedRepo.recommendedPreset && (
+                <button
+                  type="button"
+                  data-hover
+                  onClick={() => onTextChange(selectedRepo.recommendedPreset)}
+                  className="text-[10px] mono bg-[#52D123]/20 hover:bg-[#52D123]/30 text-[#52D123] px-2.5 py-1 rounded-lg font-semibold cursor-pointer transition-colors"
+                  title="Paste recommended diagnosis prompt"
+                >
+                  Insert Suggested Prompt ↵
+                </button>
+              )}
+              {onDismissBanner && (
+                <button
+                  type="button"
+                  onClick={onDismissBanner}
+                  className="text-[#52D123]/60 hover:text-[#52D123] text-xs px-1 cursor-pointer"
+                  title="Dismiss notice"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Tactile Composer Glass Card */}
         <TiltCard variant="elevated" className="rounded-3xl p-7 mb-5 border border-white/10 shadow-2xl">
           <textarea
             className="w-full bg-transparent resize-none text-white text-sm leading-relaxed outline-none placeholder-[#515154] font-normal"
             style={{ minHeight: 120 }}
-            placeholder="Describe any custom bug, failing test, or question about this repository..."
+            placeholder={`Describe any bug, failing test, or question in ${selectedRepo.name}...`}
             value={text}
             onChange={e => onTextChange(e.target.value)}
           />
@@ -668,7 +731,7 @@ function ComposeView({
                 </div>
 
                 {repoDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-2 bg-[#121214]/95 backdrop-blur-xl border border-white/15 rounded-2xl p-2 shadow-2xl z-50 animate-step-in max-h-64 overflow-y-auto">
+                  <div className="absolute left-0 right-0 top-full mt-2 bg-[#121214]/95 backdrop-blur-xl border border-white/15 rounded-2xl p-2 shadow-2xl z-50 animate-step-in max-h-72 overflow-y-auto">
                     <div className="px-2.5 py-1.5 mono text-[9px] text-[#86868B] uppercase font-bold tracking-wider">
                       Select Target Repository
                     </div>
@@ -686,7 +749,10 @@ function ComposeView({
                           }`}
                         >
                           <div className="overflow-hidden">
-                            <div className="text-xs font-semibold text-white truncate">{repo.name}</div>
+                            <div className="text-xs font-semibold text-white truncate flex items-center gap-1.5">
+                              {repo.name}
+                              {repo.isCustom && <span className="text-[10px]">✨</span>}
+                            </div>
                             <div className="mono text-[10px] text-[#86868B] truncate">{repo.path}</div>
                           </div>
                           <span
@@ -764,7 +830,7 @@ function ComposeView({
               onClick={onRun}
               className="w-full bg-white text-black rounded-2xl py-3.5 font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/90 hover:scale-[1.01] transition-all duration-200 cursor-pointer shadow-xl"
             >
-              Run Agent →
+              Run Agent in {selectedRepo.name} →
             </button>
           </div>
         </TiltCard>
@@ -1316,6 +1382,388 @@ function RunsView({
 }
 
 /* ─────────────────────────────────────────────────────────
+   Upload Repository Card (Folder, Local Path, or Zip Archive)
+───────────────────────────────────────────────────────── */
+function UploadRepoCard({
+  onRepoAdded,
+  onCancel,
+}: {
+  onRepoAdded: (repo: RepositoryInfo) => void;
+  onCancel: () => void;
+}) {
+  const [mode, setMode] = useState<'folder' | 'local' | 'zip'>('folder');
+  const [selectedFolderFiles, setSelectedFolderFiles] = useState<FileList | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [customName, setCustomName] = useState('');
+  const [localPath, setLocalPath] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleUploadFolder = async () => {
+    if (!selectedFolderFiles || selectedFolderFiles.length === 0) {
+      setErrorMsg('Please click and select a project folder from your computer.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const data = await uploadRepositoryFolder(selectedFolderFiles, customName);
+      const newRepo: RepositoryInfo = {
+        id: data.id,
+        name: data.name,
+        path: data.path,
+        branch: data.branch || 'main',
+        description: data.description,
+        techStack: data.techStack,
+        badge: data.badge,
+        badgeColor: data.badgeColor,
+        recommendedPreset: data.recommendedPreset,
+        isCustom: true,
+      };
+      onRepoAdded(newRepo);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to upload repository folder.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadZip = async () => {
+    if (!selectedFile) {
+      setErrorMsg('Please choose a .zip repository archive to upload.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const data = await uploadRepositoryArchive(selectedFile, customName);
+      const newRepo: RepositoryInfo = {
+        id: data.id,
+        name: data.name,
+        path: data.path,
+        branch: data.branch || 'main',
+        description: data.description,
+        techStack: data.techStack,
+        badge: data.badge,
+        badgeColor: data.badgeColor,
+        recommendedPreset: data.recommendedPreset,
+        isCustom: true,
+      };
+      onRepoAdded(newRepo);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to upload repository archive.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConnectLocal = async () => {
+    if (!localPath.trim()) {
+      setErrorMsg('Please enter the local directory path to your repository.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const data = await connectLocalDirectory(localPath, customName);
+      const newRepo: RepositoryInfo = {
+        id: data.id,
+        name: data.name,
+        path: data.path,
+        branch: data.branch || 'main',
+        description: data.description,
+        techStack: data.techStack,
+        badge: data.badge,
+        badgeColor: data.badgeColor,
+        recommendedPreset: data.recommendedPreset,
+        isCustom: true,
+      };
+      onRepoAdded(newRepo);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to connect local directory.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="glass-elevated rounded-3xl p-6 border border-white/20 shadow-2xl mb-6 animate-step-in">
+      <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
+        <div>
+          <div className="mono text-[10px] tracking-widest text-[#52D123] font-bold uppercase mb-0.5">
+            CUSTOM REPOSITORY MOUNT
+          </div>
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Upload or Connect Your Repository
+          </h2>
+        </div>
+
+        <button
+          type="button"
+          data-hover
+          onClick={onCancel}
+          className="text-white/60 hover:text-white text-xs px-2.5 py-1 rounded-lg hover:bg-white/5 cursor-pointer"
+        >
+          ✕ Cancel
+        </button>
+      </div>
+
+      {/* Mode Selector Tabs */}
+      <div className="flex gap-2 p-1 rounded-xl bg-white/5 border border-white/10 w-fit mb-5 flex-wrap">
+        <button
+          type="button"
+          onClick={() => {
+            setMode('folder');
+            setErrorMsg(null);
+          }}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            mode === 'folder' ? 'bg-[#52D123] text-black shadow font-bold' : 'text-[#86868B] hover:text-white'
+          }`}
+        >
+          📁 Upload Folder
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('local');
+            setErrorMsg(null);
+          }}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            mode === 'local' ? 'bg-white text-black shadow' : 'text-[#86868B] hover:text-white'
+          }`}
+        >
+          📁 Connect Local Path
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('zip');
+            setErrorMsg(null);
+          }}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            mode === 'zip' ? 'bg-white text-black shadow' : 'text-[#86868B] hover:text-white'
+          }`}
+        >
+          📦 Upload .zip Archive
+        </button>
+      </div>
+
+      {errorMsg && (
+        <div className="mb-4 p-3 rounded-xl bg-[#FF453A]/15 border border-[#FF453A]/30 text-white text-xs flex items-center justify-between">
+          <span>{errorMsg}</span>
+          <button type="button" onClick={() => setErrorMsg(null)} className="text-white/80 hover:text-white ml-2">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Tab 1: FOLDER Upload (Direct Directory Picker) */}
+      {mode === 'folder' && (
+        <div className="space-y-4">
+          <input
+            type="file"
+            ref={folderInputRef}
+            // @ts-ignore
+            webkitdirectory=""
+            directory=""
+            multiple
+            className="hidden"
+            onChange={e => {
+              if (e.target.files && e.target.files.length > 0) {
+                setSelectedFolderFiles(e.target.files);
+                const first = e.target.files[0];
+                const rel = (first as any).webkitRelativePath || '';
+                const topDir = rel.split('/')[0];
+                if (!customName && topDir) {
+                  setCustomName(topDir);
+                }
+              }
+            }}
+          />
+
+          <div
+            onClick={() => folderInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
+              selectedFolderFiles && selectedFolderFiles.length > 0
+                ? 'border-[#52D123]/60 bg-[#52D123]/10'
+                : 'border-white/15 hover:border-white/30 bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            {selectedFolderFiles && selectedFolderFiles.length > 0 ? (
+              <div>
+                <div className="text-3xl mb-1">📁</div>
+                <div className="text-sm font-bold text-white mono">{customName || 'Selected Folder'}</div>
+                <div className="text-xs text-[#52D123] mono mt-1 font-semibold">
+                  ✓ {selectedFolderFiles.length} files detected from selected folder
+                </div>
+                <div className="text-[10px] text-[#86868B] mt-1">
+                  Click to select a different folder
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="text-3xl mb-1 text-white/60">📁</div>
+                <div className="text-sm font-semibold text-white">
+                  Click to select a project <span className="mono text-[#52D123]">folder</span> from your computer
+                </div>
+                <div className="text-xs text-[#86868B] mt-1.5 max-w-sm mx-auto">
+                  Uploads your codebase folder, inspects dependencies, mounts it, and opens the Workspace immediately.
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="mono text-[9px] tracking-widest text-[#86868B] block mb-1 font-semibold uppercase">
+              Repository Display Name (Optional)
+            </label>
+            <input
+              type="text"
+              value={customName}
+              onChange={e => setCustomName(e.target.value)}
+              placeholder="e.g. My Custom Service"
+              className="w-full bg-[#1C1C1E] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-white/30"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              data-hover
+              onClick={handleUploadFolder}
+              disabled={loading || !selectedFolderFiles || selectedFolderFiles.length === 0}
+              className="bg-[#52D123] text-black px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-[#52D123]/90 transition-all cursor-pointer shadow-lg disabled:opacity-40"
+            >
+              {loading ? 'Uploading & Inspecting…' : 'Upload Folder & Open in Workspace →'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: Local Folder Connection */}
+      {mode === 'local' && (
+        <div className="space-y-4">
+          <div>
+            <label className="mono text-[9px] tracking-widest text-[#86868B] block mb-1 font-semibold uppercase">
+              Local Directory Path (Absolute or Relative)
+            </label>
+            <input
+              type="text"
+              value={localPath}
+              onChange={e => setLocalPath(e.target.value)}
+              placeholder="e.g. C:\Users\asati\Projects\my-repo or ./demo/projects/..."
+              className="w-full bg-[#1C1C1E] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white mono outline-none focus:border-white/30"
+            />
+          </div>
+
+          <div>
+            <label className="mono text-[9px] tracking-widest text-[#86868B] block mb-1 font-semibold uppercase">
+              Repository Display Name (Optional)
+            </label>
+            <input
+              type="text"
+              value={customName}
+              onChange={e => setCustomName(e.target.value)}
+              placeholder="e.g. Analytics Microservice"
+              className="w-full bg-[#1C1C1E] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-white/30"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              data-hover
+              onClick={handleConnectLocal}
+              disabled={loading || !localPath.trim()}
+              className="bg-[#52D123] text-black px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-[#52D123]/90 transition-all cursor-pointer shadow-lg disabled:opacity-40"
+            >
+              {loading ? 'Scanning & Linking…' : 'Link & Open in Workspace →'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: ZIP Upload */}
+      {mode === 'zip' && (
+        <div className="space-y-4">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".zip"
+            className="hidden"
+            onChange={e => {
+              if (e.target.files && e.target.files[0]) {
+                setSelectedFile(e.target.files[0]);
+                if (!customName) {
+                  setCustomName(e.target.files[0].name.replace(/\.zip$/i, ''));
+                }
+              }
+            }}
+          />
+
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
+              selectedFile
+                ? 'border-[#52D123]/50 bg-[#52D123]/5'
+                : 'border-white/15 hover:border-white/30 bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            {selectedFile ? (
+              <div>
+                <div className="text-2xl mb-1">📦</div>
+                <div className="text-xs font-bold text-white mono">{selectedFile.name}</div>
+                <div className="text-[10px] text-[#86868B] mono mt-1">
+                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • Click to replace file
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="text-2xl mb-1 text-white/60">⬇</div>
+                <div className="text-xs font-semibold text-white">
+                  Click to select or drop repository <span className="mono text-[#52D123]">.zip</span> archive
+                </div>
+                <div className="text-[10px] text-[#86868B] mt-1">
+                  Safe unpacked execution in workspace/user_repos/ with isolated sandboxing
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="mono text-[9px] tracking-widest text-[#86868B] block mb-1 font-semibold uppercase">
+              Repository Display Name (Optional)
+            </label>
+            <input
+              type="text"
+              value={customName}
+              onChange={e => setCustomName(e.target.value)}
+              placeholder="e.g. My E-commerce Backend"
+              className="w-full bg-[#1C1C1E] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-white/30"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              data-hover
+              onClick={handleUploadZip}
+              disabled={loading || !selectedFile}
+              className="bg-[#52D123] text-black px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-[#52D123]/90 transition-all cursor-pointer shadow-lg disabled:opacity-40"
+            >
+              {loading ? 'Uploading & Unpacking…' : 'Upload Zip & Open in Workspace →'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
    Repositories View: Workspace Manager
 ───────────────────────────────────────────────────────── */
 function RepositoriesView({
@@ -1323,31 +1771,84 @@ function RepositoriesView({
   selectedRepo,
   onSelectRepo,
   onInvestigateRepo,
+  onRepoAdded,
+  onRemoveCustomRepo,
 }: {
   repos: RepositoryInfo[];
   selectedRepo: RepositoryInfo;
   onSelectRepo: (repo: RepositoryInfo) => void;
   onInvestigateRepo: (repo: RepositoryInfo) => void;
+  onRepoAdded: (repo: RepositoryInfo) => void;
+  onRemoveCustomRepo?: (repoId: string) => void;
 }) {
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [justAddedRepo, setJustAddedRepo] = useState<RepositoryInfo | null>(null);
+
+  const handleAdded = (newRepo: RepositoryInfo) => {
+    onRepoAdded(newRepo);
+    setJustAddedRepo(newRepo);
+    setShowUploadModal(false);
+  };
+
   return (
     <div className="flex-1 flex flex-col py-6 px-2 gap-5 max-w-4xl mx-auto w-full">
       {/* Header */}
-      <div className="pb-4 border-b border-white/10">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="mono text-[10px] tracking-widest text-[#86868B] font-bold uppercase">
-            ENVIRONMENT DIRECTORY
-          </span>
-          <span className="mono text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-bold">
-            {repos.length} Target Repos
-          </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="mono text-[10px] tracking-widest text-[#86868B] font-bold uppercase">
+              ENVIRONMENT DIRECTORY
+            </span>
+            <span className="mono text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-bold">
+              {repos.length} Target Repos
+            </span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+            Workspace Repositories
+          </h1>
+          <p className="text-sm text-[#86868B] mt-1">
+            Upload your own codebase or connect a local directory to diagnose bugs, run test suites, and generate patches with AgentCore.
+          </p>
         </div>
-        <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-          Workspace Repositories
-        </h1>
-        <p className="text-sm text-[#86868B] mt-1">
-          Select the active repository environment for autonomous tool execution, file reading, code patching, and test verification.
-        </p>
+
+        <button
+          type="button"
+          data-hover
+          onClick={() => setShowUploadModal(prev => !prev)}
+          className="bg-[#52D123] text-black font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-[#52D123]/90 transition-all cursor-pointer shadow-lg flex items-center gap-2 shrink-0 self-start sm:self-center"
+        >
+          <span>{showUploadModal ? '✕ Close' : '+ Upload Your Repo'}</span>
+        </button>
       </div>
+
+      {/* Just Added Success Banner */}
+      {justAddedRepo && (
+        <div className="p-4 rounded-2xl bg-[#52D123]/15 border border-[#52D123]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-step-in">
+          <div>
+            <div className="mono text-[10px] text-[#52D123] font-bold uppercase">
+              ✓ REPOSITORY CONNECTED & ACTIVE
+            </div>
+            <div className="text-sm font-bold text-white">{justAddedRepo.name}</div>
+            <div className="text-xs text-[#86868B] mono">{justAddedRepo.description} • path: {justAddedRepo.path}</div>
+          </div>
+          <button
+            type="button"
+            data-hover
+            onClick={() => onInvestigateRepo(justAddedRepo)}
+            className="bg-white text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-white/90 transition-all cursor-pointer shadow self-start sm:self-center shrink-0"
+          >
+            Start Debugging in Workspace →
+          </button>
+        </div>
+      )}
+
+      {/* Upload/Connect Modal */}
+      {showUploadModal && (
+        <UploadRepoCard
+          onRepoAdded={handleAdded}
+          onCancel={() => setShowUploadModal(false)}
+        />
+      )}
 
       {/* Repositories Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1365,20 +1866,40 @@ function RepositoriesView({
             >
               <div>
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span
-                    className="mono text-[9px] px-2.5 py-0.8 rounded-full font-bold uppercase"
-                    style={{
-                      backgroundColor: `${repo.badgeColor}20`,
-                      color: repo.badgeColor,
-                    }}
-                  >
-                    {repo.badge}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="mono text-[9px] px-2.5 py-0.8 rounded-full font-bold uppercase"
+                      style={{
+                        backgroundColor: `${repo.badgeColor}20`,
+                        color: repo.badgeColor,
+                      }}
+                    >
+                      {repo.badge}
+                    </span>
+                    {repo.isCustom && (
+                      <span className="mono text-[8px] px-2 py-0.5 rounded-full bg-white/10 text-white/80 font-bold uppercase">
+                        CUSTOM
+                      </span>
+                    )}
+                  </div>
                   <span className="mono text-[10px] text-[#52D123] font-semibold">● {repo.branch}</span>
                 </div>
 
-                <h3 className="text-lg font-bold text-white tracking-tight mb-1">
-                  {repo.name}
+                <h3 className="text-lg font-bold text-white tracking-tight mb-1 flex items-center justify-between">
+                  <span>{repo.name}</span>
+                  {repo.isCustom && onRemoveCustomRepo && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveCustomRepo(repo.id);
+                      }}
+                      className="text-[10px] text-[#86868B] hover:text-[#FF453A] cursor-pointer"
+                      title="Remove custom repository"
+                    >
+                      ✕ Remove
+                    </button>
+                  )}
                 </h3>
                 <div className="mono text-[10px] text-[#86868B] mb-3 truncate" title={repo.path}>
                   path: {repo.path}
@@ -1414,9 +1935,9 @@ function RepositoriesView({
                   data-hover
                   onClick={() => onInvestigateRepo(repo)}
                   className="bg-white text-black py-2.5 px-4 rounded-xl text-xs font-bold hover:bg-white/90 transition-all cursor-pointer shadow-md"
-                  title="Load sample bug fix task into workspace"
+                  title="Load debugging task into workspace"
                 >
-                  Investigate →
+                  Debug in Workspace →
                 </button>
               </div>
             </div>
@@ -1660,17 +2181,29 @@ export default function Demo({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [runTelemetry, setRunTelemetry] = useState<RunTelemetry | null>(null);
 
-  // Repositories state
+  // User-uploaded / custom repositories
+  const [userRepos, setUserRepos] = useState<RepositoryInfo[]>(() => {
+    try {
+      const saved = localStorage.getItem('repopilot_user_repos');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  // Combined repositories list: user repos at top, followed by default presets
+  const allRepos = [...userRepos, ...WORKSPACE_REPOS];
+
+  // Selected Repository state
   const [selectedRepo, setSelectedRepo] = useState<RepositoryInfo>(() => {
     try {
       const saved = localStorage.getItem('repopilot_selected_repo');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const match = WORKSPACE_REPOS.find(r => r.id === parsed.id);
+        const match = allRepos.find(r => r.id === parsed.id || r.path === parsed.path);
         if (match) return match;
       }
     } catch {}
-    return WORKSPACE_REPOS[0];
+    return allRepos[0];
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
@@ -1701,10 +2234,44 @@ export default function Demo({
 
   const [backendConnected, setBackendConnected] = useState(true);
 
-  // Poll backend health on initial load
+  // One line notification in greenish text above the workspace
+  const [uploadedRepoBanner, setUploadedRepoBanner] = useState<string | null>(() => {
+    return localStorage.getItem('repopilot_uploaded_banner') || null;
+  });
+  const [showQuickFolderUploadModal, setShowQuickFolderUploadModal] = useState(false);
+
+  // Poll backend health & fetch existing user repositories on mount
   useEffect(() => {
     checkBackendHealth().then(res => {
       setBackendConnected(res.ok);
+    });
+
+    fetchUserRepositories().then(backendRepos => {
+      if (backendRepos && backendRepos.length > 0) {
+        setUserRepos(prev => {
+          const map = new Map<string, RepositoryInfo>();
+          for (const r of prev) map.set(r.id, r);
+          for (const b of backendRepos) {
+            map.set(b.id, {
+              id: b.id,
+              name: b.name,
+              path: b.path,
+              branch: b.branch || 'main',
+              description: b.description,
+              techStack: b.techStack,
+              badge: b.badge,
+              badgeColor: b.badgeColor,
+              recommendedPreset: b.recommendedPreset,
+              isCustom: true,
+            });
+          }
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem('repopilot_user_repos', JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
     });
   }, []);
 
@@ -1719,7 +2286,7 @@ export default function Demo({
   const handleSelectRepo = (repo: RepositoryInfo) => {
     setSelectedRepo(repo);
     try {
-      localStorage.setItem('repopilot_selected_repo', JSON.stringify({ id: repo.id, name: repo.name }));
+      localStorage.setItem('repopilot_selected_repo', JSON.stringify({ id: repo.id, name: repo.name, path: repo.path }));
     } catch {}
   };
 
@@ -1742,6 +2309,48 @@ export default function Demo({
     try {
       localStorage.removeItem('repopilot_runs_history');
     } catch {}
+  };
+
+  // Add custom repo
+  const handleRepoAdded = (newRepo: RepositoryInfo) => {
+    setUserRepos(prev => {
+      const filtered = prev.filter(r => r.id !== newRepo.id);
+      const updated = [newRepo, ...filtered];
+      try {
+        localStorage.setItem('repopilot_user_repos', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setSelectedRepo(newRepo);
+    try {
+      localStorage.setItem('repopilot_selected_repo', JSON.stringify({ id: newRepo.id, name: newRepo.name, path: newRepo.path }));
+    } catch {}
+
+    // Show name+repository uploaded in greenish text above workspace
+    const banner = `${newRepo.name} repository uploaded`;
+    setUploadedRepoBanner(banner);
+    try {
+      localStorage.setItem('repopilot_uploaded_banner', banner);
+    } catch {}
+
+    setActiveTab('ws');
+    setPhase('compose');
+    setText('');
+    setShowQuickFolderUploadModal(false);
+  };
+
+  // Remove custom repo
+  const handleRemoveCustomRepo = (repoId: string) => {
+    setUserRepos(prev => {
+      const next = prev.filter(r => r.id !== repoId);
+      try {
+        localStorage.setItem('repopilot_user_repos', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    if (selectedRepo.id === repoId) {
+      setSelectedRepo(WORKSPACE_REPOS[0]);
+    }
   };
 
   /**
@@ -1902,7 +2511,7 @@ export default function Demo({
   // Re-run a past task
   const handleRerunTask = (run: RunRecord) => {
     setText(run.task);
-    const match = WORKSPACE_REPOS.find(r => r.path === run.repoPath);
+    const match = allRepos.find(r => r.path === run.repoPath || r.id === run.repoName);
     if (match) setSelectedRepo(match);
     setSelectedBranch(run.branch || 'main');
     setPhase('compose');
@@ -1942,7 +2551,7 @@ export default function Demo({
               ← Overview
             </button>
             <div className="h-4 w-px bg-white/10" />
-            <span className="text-xs font-bold text-white tracking-tight uppercase mono">
+            <span className="text-xs font-bold text-white tracking-tight uppercase mono truncate max-w-sm sm:max-w-md">
               {activeTab === 'ws' && `Workspace / ${selectedRepo.name}`}
               {activeTab === 'debug' && 'Universal Code Debugger'}
               {activeTab === 'runs' && 'Runs / Execution History'}
@@ -1952,6 +2561,16 @@ export default function Demo({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              data-hover
+              onClick={() => setShowQuickFolderUploadModal(true)}
+              className="mono text-[11px] text-[#52D123] hover:text-black hover:bg-[#52D123] border border-[#52D123]/40 bg-[#52D123]/10 px-3 py-1 rounded-full transition-all cursor-pointer font-bold flex items-center gap-1.5 shadow-sm"
+              title="Upload project folder from computer"
+            >
+              <span>📁</span> Upload Folder
+            </button>
+
             {activeTab !== 'ws' && (
               <button
                 type="button"
@@ -2024,7 +2643,13 @@ export default function Demo({
                     onSelectRepo={handleSelectRepo}
                     selectedBranch={selectedBranch}
                     onSelectBranch={handleSelectBranch}
-                    reposList={WORKSPACE_REPOS}
+                    reposList={allRepos}
+                    uploadedRepoBanner={uploadedRepoBanner}
+                    onDismissBanner={() => {
+                      setUploadedRepoBanner(null);
+                      localStorage.removeItem('repopilot_uploaded_banner');
+                    }}
+                    onOpenFolderUpload={() => setShowQuickFolderUploadModal(true)}
                   />
                 )}
                 {phase === 'running' && (
@@ -2064,10 +2689,12 @@ export default function Demo({
             {/* REPOSITORIES TAB */}
             {activeTab === 'repos' && (
               <RepositoriesView
-                repos={WORKSPACE_REPOS}
+                repos={allRepos}
                 selectedRepo={selectedRepo}
                 onSelectRepo={handleSelectRepo}
                 onInvestigateRepo={handleInvestigateRepo}
+                onRepoAdded={handleRepoAdded}
+                onRemoveCustomRepo={handleRemoveCustomRepo}
               />
             )}
 
@@ -2092,6 +2719,18 @@ export default function Demo({
           )}
         </div>
       </main>
+
+      {/* Quick Folder Upload Modal Overlay */}
+      {showQuickFolderUploadModal && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full">
+            <UploadRepoCard
+              onRepoAdded={handleRepoAdded}
+              onCancel={() => setShowQuickFolderUploadModal(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
