@@ -110,10 +110,13 @@ class ShellTool(BaseTool):
                         cleaned_tokens.append(token)
                 cmd_args = cleaned_tokens
             except ValueError as ve:
-                return ToolResult({
-                    "status": "error",
-                    "error": f"Failed to parse command string: {str(ve)}"
-                })
+                if any(c in trimmed for c in ("<", ">", "|", "&&", ";", "\n", "`")):
+                    cmd_args = [trimmed]
+                else:
+                    return ToolResult({
+                        "status": "error",
+                        "error": f"Failed to parse command string: {str(ve)}"
+                    })
         elif isinstance(raw_cmd, (list, tuple)):
             if len(raw_cmd) == 0:
                 return ToolResult({
@@ -188,17 +191,31 @@ class ShellTool(BaseTool):
                 "error": f"Configured workspace is a file, not a directory: '{effective_cwd}'"
             })
 
-        # 5. Execute process without shell=True
+        # 5. Execute process (use shell=True when shell operators/pipes/heredocs are detected)
         MAX_OUTPUT_CHARS = 500_000
+        has_shell_operators = isinstance(raw_cmd, str) and any(
+            c in raw_cmd for c in ("<", ">", "|", "&&", ";", "\n", "`")
+        )
         try:
-            process = subprocess.run(
-                cmd_args,
-                cwd=str(effective_cwd),
-                capture_output=True,
-                text=True,
-                timeout=timeout_val,
-                shell=False,
-            )
+            if has_shell_operators:
+                process = subprocess.run(
+                    trimmed,
+                    cwd=str(effective_cwd),
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout_val,
+                    shell=True,
+                    executable="/bin/bash" if os.name != "nt" else None,
+                )
+            else:
+                process = subprocess.run(
+                    cmd_args,
+                    cwd=str(effective_cwd),
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout_val,
+                    shell=False,
+                )
 
             stdout_text = process.stdout
             if len(stdout_text) > MAX_OUTPUT_CHARS:

@@ -51,6 +51,8 @@ def login(username: str, password: str) -> Dict[str, Any]:
     if user["status"] != "active":
         raise PermissionError("403 Forbidden: Account inactive or pending verification")
 
+
+
     return {
         "status": "authenticated",
         "username": username,

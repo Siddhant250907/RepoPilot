@@ -21,7 +21,7 @@ class FileTool(BaseTool):
     """Tool for exploring and inspecting files within the repository workspace."""
 
     name: str = "file_tool"
-    description: str = "Read file contents, list directory entries, or search text across files in the workspace."
+    description: str = "Read file contents, write/update file contents, list directory entries, or search text across files in the workspace."
 
     def __init__(self, workspace_root: Optional[Union[str, Path]] = None):
         if workspace_root:
@@ -37,12 +37,16 @@ class FileTool(BaseTool):
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["list", "read", "search"],
-                    "description": "File system action to perform: 'list', 'read', or 'search'."
+                    "enum": ["list", "read", "search", "write"],
+                    "description": "File system action to perform: 'list', 'read', 'search', or 'write'."
                 },
                 "path": {
                     "type": "string",
                     "description": "Target file or directory path relative to workspace root."
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Text content to write into the file (required for 'write' action)."
                 },
                 "query": {
                     "type": "string",
@@ -73,7 +77,7 @@ class FileTool(BaseTool):
             })
 
         action = action.strip().lower()
-        if action not in ("list", "read", "search"):
+        if action not in ("list", "read", "search", "write"):
             return ToolResult({
                 "status": "error",
                 "error": f"Unknown action: '{action}'. Supported actions are: 'list', 'read', 'search'"
@@ -116,6 +120,14 @@ class FileTool(BaseTool):
             elif action == "search":
                 query = params.get("query")
                 return self._search_files(target_path, raw_path, query)
+            elif action == "write":
+                content = params.get("content")
+                if content is None:
+                    return ToolResult({
+                        "status": "error",
+                        "error": "Missing required argument: 'content' for action 'write'"
+                    })
+                return self._write_file(target_path, raw_path, str(content))
         except Exception as exc:
             return ToolResult({
                 "status": "error",
@@ -126,6 +138,22 @@ class FileTool(BaseTool):
             "status": "error",
             "error": f"Unhandled action: {action}"
         })
+
+    def _write_file(self, target_path: Path, raw_path: Any, content: str) -> ToolResult:
+        """Safely write content to a file within target_path."""
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target_path.write_text(content, encoding="utf-8")
+            return ToolResult({
+                "status": "success",
+                "data": f"Successfully wrote {len(content)} characters to '{raw_path}'",
+                "path": str(raw_path)
+            })
+        except Exception as exc:
+            return ToolResult({
+                "status": "error",
+                "error": f"Failed to write file '{raw_path}': {str(exc)}"
+            })
 
     def _list_directory(self, target_path: Path, raw_path: Any) -> ToolResult:
         """List files and directories within target_path."""
