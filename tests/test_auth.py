@@ -10,7 +10,7 @@ login_dir = Path(__file__).resolve().parent.parent / "demo" / "projects" / "brok
 if str(login_dir) not in sys.path:
     sys.path.insert(0, str(login_dir))
 
-from auth import login, check_admin_access
+from auth import login
 
 
 def test_login_valid_credentials():
@@ -32,3 +32,4 @@ def test_login_unknown_user():
     """Non-existent user should raise 401 Unauthorized."""
     with pytest.raises(ValueError, match="401"):
         login("non_existent_user", "some_password")
+
