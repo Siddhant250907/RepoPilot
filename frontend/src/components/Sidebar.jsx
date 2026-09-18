@@ -131,8 +131,11 @@ export default function Sidebar({
           </div>
           {!isCollapsed && (
             <div className="brand-text-col">
-              <span className="brand-name">RepoPilot</span>
-              <span className="brand-badge-pill">AI</span>
+              <div className="brand-row">
+                <span className="brand-name">RepoPilot</span>
+                <span className="brand-badge-pill">AI</span>
+              </div>
+              <span className="brand-tagline">Autonomous AI Software Debugging Agent</span>
             </div>
           )}
         </div>

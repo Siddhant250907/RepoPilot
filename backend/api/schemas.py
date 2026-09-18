@@ -49,3 +49,19 @@ class TraceStepSchema(BaseModel):
     stage: str  # PLAN, ACT, OBSERVE, REFLECT
     content: Dict[str, Any]
     timestamp: str
+
+
+class AgentRunRequest(BaseModel):
+    """Request payload to initiate real AgentCore execution."""
+    task: str
+    target_repo_path: Optional[str] = None
+    max_steps: Optional[int] = 10
+
+
+class AgentRunResponse(BaseModel):
+    """Response payload containing real execution trace events and final answer."""
+    status: str
+    events: List[Dict[str, Any]]
+    final_answer: str
+    trajectory: Optional[List[Dict[str, Any]]] = None
+

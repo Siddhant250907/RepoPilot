@@ -30,6 +30,22 @@ from backend.tools.shell_tool import ShellTool
 logger = logging.getLogger("RepoPilot.AgentCore")
 
 
+def create_default_registry() -> ToolRegistry:
+    """
+    Instantiate and populate a ToolRegistry with Person 2's core tools:
+    - FileTool (name: 'file_tool')
+    - ShellTool (name: 'shell_tool')
+    - SearchTool (name: 'search_tool')
+    - CalculatorTool (name: 'calculator_tool')
+    """
+    registry = ToolRegistry()
+    registry.register(FileTool())
+    registry.register(ShellTool())
+    registry.register(SearchTool())
+    registry.register(CalculatorTool())
+    return registry
+
+
 class AgentCore:
     """
     Autonomous Agent orchestrator driving the cognitive loop for RepoPilot.
@@ -48,7 +64,7 @@ class AgentCore:
         self.llm = llm or LLMInterface()
         self.memory = memory or AgentMemory()
         self.planner = planner or Planner()
-        self.registry = registry or ToolRegistry()
+        self.registry = registry if registry is not None else create_default_registry()
         self.event_bus = event_bus or EventBus()
         self.max_iterations = max_iterations
 
@@ -59,10 +75,8 @@ class AgentCore:
 
         # Populate default tools if registry is completely empty
         if not self.registry._tools:
-            self.registry.register(FileTool())
-            self.registry.register(ShellTool())
-            self.registry.register(SearchTool())
-            self.registry.register(CalculatorTool())
+            for tool in create_default_registry().get_all():
+                self.registry.register(tool)
 
     async def _emit(self, event_type: EventType, step: int, payload: Dict[str, Any]) -> None:
         """Helper to publish trace events safely without breaking the agent loop."""

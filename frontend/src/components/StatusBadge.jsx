@@ -18,8 +18,21 @@ import {
 } from 'lucide-react';
 
 const STATUS_CONFIGS = {
+  READY: {
+    label: 'READY',
+    icon: <CircleDot size={13} />,
+    className: 'status-idle',
+    description: 'Ready for investigation task',
+  },
+  RUNNING: {
+    label: 'RUNNING',
+    icon: <Loader2 size={13} className="spin" />,
+    className: 'status-executing',
+    description: 'Autonomous AgentCore execution running',
+    pulsing: true,
+  },
   IDLE: {
-    label: 'IDLE',
+    label: 'READY',
     icon: <CircleDot size={13} />,
     className: 'status-idle',
     description: 'Awaiting task input',

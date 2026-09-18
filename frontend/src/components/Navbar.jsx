@@ -61,14 +61,14 @@ export default function Navbar({
           <span 
             className="breadcrumb-root" 
             onClick={onReturnLanding}
-            style={{ cursor: onReturnLanding ? 'pointer' : 'default' }}
+            style={{ cursor: onReturnLanding ? 'pointer' : 'default', fontWeight: 600 }}
             title={onReturnLanding ? 'Return to Landing Page' : undefined}
           >
-            Workspace
+            RepoPilot
           </span>
-          <span className="breadcrumb-separator">/</span>
+          <span className="breadcrumb-separator">•</span>
           <span className="breadcrumb-current">
-            {activeTask ? activeTask.repository : 'Target Selection'}
+            Autonomous AI Software Debugging Agent
           </span>
         </div>
 

@@ -168,7 +168,7 @@ export default function TaskInput({ onRun, disabled = false, initialRepo, initia
           <textarea
             ref={textareaRef}
             className="composer-textarea"
-            placeholder="Describe the bug, error, or behavior you want RepoPilot to investigate..."
+            placeholder="Describe the software problem you want RepoPilot to investigate..."
             value={task}
             onChange={(e) => setTask(e.target.value)}
             onKeyDown={handleKeyDown}

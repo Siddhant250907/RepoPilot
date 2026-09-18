@@ -39,6 +39,10 @@ import {
   Bug
 } from 'lucide-react';
 
+import ToolCall from './ToolCall.jsx';
+import ErrorCard from './ErrorCard.jsx';
+import FinalResult from './FinalResult.jsx';
+
 export default function AgentTrace({ events = [], onStartNewTask }) {
   const traceBottomRef = useRef(null);
   const [expandedDetails, setExpandedDetails] = useState({});
@@ -72,13 +76,13 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
     // Check if tool failure
     if (
       event.type === 'error' ||
-      (event.type === 'tool_result' && Boolean(event.error))
+      (event.type === 'tool_result' && (Boolean(event.error) || event.status === 'error'))
     ) {
       return {
-        typeLabel: 'ERROR',
+        typeLabel: 'TOOL RESULT: ERROR',
         accent: 'red',
         icon: <AlertTriangle size={15} />,
-        statusLabel: 'RECOVERING',
+        statusLabel: 'FAILED',
         isFailure: true,
       };
     }
@@ -89,7 +93,7 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
         typeLabel: 'REFLECTION',
         accent: 'amber',
         icon: <Brain size={15} />,
-        statusLabel: 'RECOVERING',
+        statusLabel: 'REFLECTING',
         isReflection: true,
       };
     }
@@ -98,10 +102,10 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
     const prevWasReflection = index > 0 && allEvents[index - 1]?.type === 'reflection';
     if (prevWasReflection && event.type === 'tool_call') {
       return {
-        typeLabel: 'REPLAN',
+        typeLabel: 'TOOL CALL',
         accent: 'purple',
         icon: <Search size={15} />,
-        statusLabel: 'USING TOOL',
+        statusLabel: 'RUNNING',
         isNewAction: true,
       };
     }
@@ -112,37 +116,38 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
         typeLabel: 'PLAN',
         accent: 'indigo',
         icon: <Brain size={15} />,
-        statusLabel: 'THINKING',
+        statusLabel: 'PLANNING',
       };
     }
 
-    // Check if standard tool call (ACT)
+    // Check if standard tool call
     if (event.type === 'tool_call') {
       return {
-        typeLabel: 'ACT',
+        typeLabel: 'TOOL CALL',
         accent: 'purple',
         icon: getToolIcon(event.tool),
-        statusLabel: 'USING TOOL',
+        statusLabel: 'RUNNING',
       };
     }
 
     // Check if tool observation / result
     if (event.type === 'tool_result') {
-      const isPass = event.data && (event.data.includes('passed') || event.data.includes('SUCCESS'));
-      if (isPass) {
+      const isFail = event.status === 'error' || Boolean(event.error);
+      if (isFail) {
         return {
-          typeLabel: 'SUCCESS',
-          accent: 'green',
-          icon: <CheckCircle2 size={15} />,
-          statusLabel: 'OBSERVING',
-          isSuccess: true,
+          typeLabel: 'TOOL RESULT: ERROR',
+          accent: 'red',
+          icon: <AlertTriangle size={15} />,
+          statusLabel: 'FAILED',
+          isFailure: true,
         };
       }
       return {
-        typeLabel: 'OBSERVE',
-        accent: 'blue',
-        icon: <Eye size={15} />,
-        statusLabel: 'OBSERVING',
+        typeLabel: 'TOOL RESULT: SUCCESS',
+        accent: 'green',
+        icon: <CheckCircle2 size={15} />,
+        statusLabel: 'SUCCESS',
+        isSuccess: true,
       };
     }
 
@@ -280,23 +285,37 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
 
                 {/* Primary Message (AI Thought or Action Description) */}
                 <div className="step-message-row">
-                  {event.message && (
+                  {event.message && !meta.isFinal && event.type !== 'tool_call' && (
                     <p className="step-message-text">{event.message}</p>
                   )}
 
-                  {/* Special Callouts for Failure & Recovery */}
-                  {meta.isFailure && (
-                    <div className="failure-alert-box">
-                      <div className="failure-alert-header">
-                        <AlertTriangle size={14} className="alert-icon" />
-                        <strong>Tool Failure Encountered (Test Assertion / KeyError)</strong>
-                      </div>
-                      <p className="failure-subtext">
-                        {event.error || 'The command returned a non-zero exit code.'}
-                      </p>
+                  {/* Dedicated ToolCall Component */}
+                  {event.type === 'tool_call' && (
+                    <div className="tool-call-wrap">
+                      {event.thought && (
+                        <p className="step-thought-text">
+                          <em>Thought:</em> {event.thought}
+                        </p>
+                      )}
+                      <ToolCall
+                        toolName={event.tool || 'tool'}
+                        arguments={event.arguments}
+                        status={event.status || 'EXECUTING'}
+                        data={event}
+                      />
                     </div>
                   )}
 
+                  {/* Dedicated ErrorCard Component for Failures */}
+                  {meta.isFailure && (
+                    <ErrorCard
+                      tool={event.tool || 'tool'}
+                      error={event.error || 'The command returned a non-zero exit code.'}
+                      data={event}
+                    />
+                  )}
+
+                  {/* Reflection Block */}
                   {meta.isReflection && (
                     <div className="reflection-alert-box">
                       <div className="reflection-alert-header">
@@ -304,7 +323,7 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
                         <strong>Autonomous Reflection & Self-Correction</strong>
                       </div>
                       <p className="reflection-subtext">
-                        {event.hypothesis || event.message}
+                        {event.message || event.hypothesis || 'Reflecting on step outcome and formulating next action.'}
                       </p>
                     </div>
                   )}
@@ -316,23 +335,13 @@ export default function AgentTrace({ events = [], onStartNewTask }) {
                     </div>
                   )}
 
-                  {/* Final Result Card */}
+                  {/* Dedicated FinalResult Card */}
                   {meta.isFinal && (
-                    <div className="final-resolution-box">
-                      <div className="final-box-header">
-                        <CheckCircle2 size={16} className="final-check-icon" />
-                        <strong>Root Cause Verified & Resolved</strong>
-                      </div>
-                      <p className="final-summary-text">
-                        {event.summary || 'All reproduction assertions passing with zero regressions.'}
-                      </p>
-                      {event.filesChanged && (
-                        <div className="final-files-pill">
-                          <FileCode size={13} />
-                          <span>Files modified: {event.filesChanged.join(', ')}</span>
-                        </div>
-                      )}
-                    </div>
+                    <FinalResult
+                      response={event.summary || event.message}
+                      result={event}
+                      onStartNewTask={onStartNewTask}
+                    />
                   )}
                 </div>
 

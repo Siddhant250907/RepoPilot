@@ -4,20 +4,59 @@
  * Owner: Person 3
  *
  * Responsibilities:
- * - Handle HTTP REST and SSE/WebSocket communication with FastAPI backend.
+ * - Handle HTTP REST communication with FastAPI backend.
+ * - Call real AgentCore endpoints (POST /api/agent/run, POST /api/tasks).
  * - Clean contract for Person 1 (AgentCore) and Person 2 (Tools).
- * - Honest error handling when backend server is offline or unreachable.
+ * - Honest error handling when backend server is offline or returns error.
  */
 
 const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000/api';
 
 /**
- * Submit a repository debugging task to the backend.
+ * Execute real AgentCore with live Gemini model and default tools.
+ *
+ * @param {Object} params
+ * @param {string} params.task - Description of the debugging or investigation task
+ * @param {string} [params.repository] - Optional repository path or context
+ * @param {number} [params.maxSteps=10] - Maximum cognitive loop steps
+ * @returns {Promise<{status: string, events: Array<Object>, final_answer: string, trajectory?: Array<Object>}>}
+ */
+export async function runAgentTask({ task, repository, maxSteps = 10 }) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/agent/run`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        task,
+        target_repo_path: repository,
+        max_steps: maxSteps,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const message =
+        errorData.detail ||
+        `Backend API returned HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(message);
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error('[API Service] runAgentTask error:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Submit a repository debugging task to the backend /tasks endpoint.
  *
  * @param {Object} params
  * @param {string} params.repository - Target repository path or URL
  * @param {string} params.task - Description of the debugging objective
- * @returns {Promise<{taskId: string, status: string, message: string}>}
+ * @returns {Promise<{task_id: string, status: string, message: string, result?: string}>}
  */
 export async function submitTask({ repository, task }) {
   try {
@@ -50,7 +89,7 @@ export async function submitTask({ repository, task }) {
  * Poll current task status from the backend.
  *
  * @param {string} taskId
- * @returns {Promise<{taskId: string, status: string, message: string, result?: any}>}
+ * @returns {Promise<{task_id: string, status: string, message: string, result?: any}>}
  */
 export async function getTaskStatus(taskId) {
   const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`);
@@ -61,33 +100,15 @@ export async function getTaskStatus(taskId) {
 }
 
 /**
- * Subscribe to live agent cognitive trace streaming via Server-Sent Events (SSE).
- *
- * @param {string} taskId
- * @param {function(Object): void} onEvent - Callback for each trace event
- * @param {function(Error): void} onError - Callback for stream errors
- * @returns {function(): void} Cleanup unsubscribe function
+ * Check health of backend service.
+ * @returns {Promise<boolean>}
  */
-export function subscribeToTaskEvents(taskId, onEvent, onError) {
-  const sseUrl = `${API_BASE_URL}/tasks/${taskId}/events`;
-  const eventSource = new EventSource(sseUrl);
-
-  eventSource.onmessage = (e) => {
-    try {
-      const eventData = JSON.parse(e.data);
-      if (onEvent) onEvent(eventData);
-    } catch (err) {
-      console.error('[API Service] Failed to parse SSE event data:', err);
-    }
-  };
-
-  eventSource.onerror = (err) => {
-    console.warn('[API Service] EventSource encountered an error:', err);
-    if (onError) onError(err);
-    eventSource.close();
-  };
-
-  return () => {
-    eventSource.close();
-  };
+export async function checkBackendHealth() {
+  try {
+    const rootUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+    const res = await fetch(`${rootUrl}/health`, { method: 'GET' });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }

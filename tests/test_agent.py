@@ -219,6 +219,32 @@ class TestAgentCore(unittest.TestCase):
         self.assertIsNotNone(self.agent.registry)
         self.assertIsNotNone(self.agent.event_bus)
 
+    def test_agent_default_tools_integration(self):
+        """
+        Verify that default AgentCore initializes and registers all 4 Person 2 tools:
+        - file_tool (FileTool)
+        - shell_tool (ShellTool)
+        - search_tool (SearchTool)
+        - calculator_tool (CalculatorTool)
+        And that AgentCore can retrieve each tool by name.
+        """
+        agent = AgentCore()
+        tool_names = [tool.name for tool in agent.registry.get_all()]
+        self.assertEqual(len(agent.registry), 4)
+        self.assertIn("file_tool", tool_names)
+        self.assertIn("shell_tool", tool_names)
+        self.assertIn("search_tool", tool_names)
+        self.assertIn("calculator_tool", tool_names)
+
+        # Verify retrieval by name via registry.get() and registry.get_tool()
+        for expected_name in ["file_tool", "shell_tool", "search_tool", "calculator_tool"]:
+            tool = agent.registry.get(expected_name)
+            self.assertIsNotNone(tool, f"Tool '{expected_name}' should be retrievable via get()")
+            self.assertEqual(tool.name, expected_name)
+            retrieved_tool = agent.registry.get_tool(expected_name)
+            self.assertIsNotNone(retrieved_tool, f"Tool '{expected_name}' should be retrievable via get_tool()")
+            self.assertEqual(retrieved_tool.name, expected_name)
+
     def test_basic_loop_task_to_final_answer(self):
         """Test single-turn loop where LLM directly provides final answer."""
         mock_llm = MockLLMInterface(responses=[

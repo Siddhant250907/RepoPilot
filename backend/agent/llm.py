@@ -46,12 +46,23 @@ class LLMInterface(BaseLLM):
     def __init__(
         self,
         api_key: str = "",
-        model: str = "gemini-2.5-flash",
+        model: str = "gemini-3.6-flash",
         model_name: str = "",
         **kwargs: Any,
     ):
-        self.api_key = api_key or os.getenv("LLM_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
-        self.model = model_name or model or os.getenv("LLM_MODEL", "gemini-2.5-flash")
+        resolved_key = api_key or os.getenv("LLM_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
+        if not resolved_key:
+            try:
+                from backend.config import settings
+                resolved_key = getattr(settings, "LLM_API_KEY", "")
+            except Exception:
+                pass
+        self.api_key = resolved_key
+
+        resolved_model = model_name or os.getenv("LLM_MODEL", "") or model
+        if not resolved_model or resolved_model == "gemini-2.5-flash":
+            resolved_model = "gemini-3.6-flash"
+        self.model = resolved_model
         self.model_name = self.model
         self.config = kwargs
 
@@ -77,7 +88,11 @@ class LLMInterface(BaseLLM):
         if not effective_prompt:
             return ""
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
+        model_id = self.model
+        if model_id.startswith("models/"):
+            model_id = model_id[len("models/"):]
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={self.api_key}"
 
         contents = [{"parts": [{"text": effective_prompt}]}]
         payload: Dict[str, Any] = {"contents": contents}
@@ -85,6 +100,22 @@ class LLMInterface(BaseLLM):
             payload["systemInstruction"] = {
                 "parts": [{"text": system_prompt}]
             }
+
+        # Optional generation parameters from kwargs or instance config
+        generation_config: Dict[str, Any] = {}
+        temperature = kwargs.get("temperature", self.config.get("temperature"))
+        if temperature is not None:
+            generation_config["temperature"] = float(temperature)
+
+        max_output_tokens = kwargs.get(
+            "max_output_tokens",
+            kwargs.get("max_tokens", self.config.get("max_output_tokens", self.config.get("max_tokens"))),
+        )
+        if max_output_tokens is not None:
+            generation_config["maxOutputTokens"] = int(max_output_tokens)
+
+        if generation_config:
+            payload["generationConfig"] = generation_config
 
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
@@ -97,15 +128,37 @@ class LLMInterface(BaseLLM):
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
+
+                if "error" in result:
+                    err_msg = result["error"].get("message", str(result["error"]))
+                    raise RuntimeError(f"Gemini API returned error: {err_msg}")
+
+                prompt_feedback = result.get("promptFeedback")
+                if prompt_feedback and prompt_feedback.get("blockReason"):
+                    raise RuntimeError(f"Gemini API blocked prompt: {prompt_feedback.get('blockReason')}")
+
                 candidates = result.get("candidates", [])
                 if candidates:
-                    parts = candidates[0].get("content", {}).get("parts", [])
+                    candidate = candidates[0]
+                    parts = candidate.get("content", {}).get("parts", [])
                     if parts:
-                        return parts[0].get("text", "")
+                        return "".join(p.get("text", "") for p in parts if "text" in p).strip()
+
+                    finish_reason = candidate.get("finishReason")
+                    if finish_reason and finish_reason not in ("STOP", "MAX_TOKENS"):
+                        raise RuntimeError(
+                            f"Gemini generation stopped unexpectedly with reason: {finish_reason}"
+                        )
                 return ""
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"LLM API HTTP error {e.code}: {err_body}") from e
+        except urllib.error.URLError as e:
+            raise RuntimeError(f"LLM API network error: {e.reason}") from e
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"Failed to parse LLM API JSON response: {e}") from e
+        except RuntimeError:
+            raise
         except Exception as e:
             raise RuntimeError(f"LLM API communication failed: {e}") from e
 
@@ -176,3 +229,30 @@ class MockLLMInterface(LLMInterface):
 
 # Aliases for provider and testing compatibility
 MockLLM = MockLLMInterface
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    print("=== RepoPilot LLM Module Self-Test ===")
+
+    # Check LLMInterface configuration
+    llm = LLMInterface()
+    print(f"Configured model: {llm.model}")
+    print(f"API key detected: {'Yes' if llm.api_key else 'No (set LLM_API_KEY or GEMINI_API_KEY in environment or .env)'}")
+
+    # Exercise MockLLMInterface execution
+    print("\n--- Testing MockLLMInterface multi-turn execution ---")
+    mock = MockLLMInterface(responses=[
+        {"type": "tool_call", "tool": "file_tool", "arguments": {"action": "read", "path": "main.py"}},
+        {"type": "final", "answer": "Task completed successfully."}
+    ])
+
+    async def _demo():
+        out1 = await mock.generate(prompt="Analyze codebase")
+        print(f"Turn 1 Output: {out1}")
+        out2 = await mock.generate(prompt="Provide summary")
+        print(f"Turn 2 Output: {out2}")
+
+    asyncio.run(_demo())
+    print("\n=== llm.py executed successfully! ===")

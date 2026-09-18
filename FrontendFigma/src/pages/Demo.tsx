@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import TiltCard from '../components/TiltCard';
 import TechnicalSurface from '../components/TechnicalSurface';
 import { ColorTheme } from '../components/AppleHeroPedestal';
+import { runAgentTask, BackendEvent } from '../services/api';
 
 type Phase = 'compose' | 'running' | 'complete';
 
@@ -13,97 +14,17 @@ interface TraceStep {
   query?: string;
   detail?: string;
   status: 'done' | 'active' | 'fail' | 'reason' | 'success';
-  delay: number;
 }
 
-const TRACE: TraceStep[] = [
-  {
-    id: 0,
-    icon: '✓',
-    text: 'Plan synthesized',
-    toolName: 'AGENT CORE',
-    detail: '4 investigative phases planned with static symbol extraction',
-    status: 'done',
-    delay: 800,
-  },
-  {
-    id: 1,
-    icon: '✓',
-    text: 'Search codebase',
-    toolName: 'SEARCH CODEBASE',
-    query: 'login',
-    detail: '3 matches found in auth.py, routes.py, and test_auth.py',
-    status: 'done',
-    delay: 1600,
-  },
-  {
-    id: 2,
-    icon: '✓',
-    text: 'Inspect auth.py',
-    toolName: 'FILE READER',
-    query: 'backend/auth.py',
-    detail: 'Inspecting token claim validation in authenticate_user() [lines 45-82]',
-    status: 'done',
-    delay: 2400,
-  },
-  {
-    id: 3,
-    icon: '⚠',
-    text: 'Shell test failed',
-    toolName: 'SHELL',
-    query: 'pytest tests/test_auth.py',
-    detail: 'exit code 1 — AssertionError: 403 != 200 (Invalid token signature)',
-    status: 'fail',
-    delay: 3400,
-  },
-  {
-    id: 4,
-    icon: '↻',
-    text: 'Replanning alternate strategy',
-    toolName: 'REASONING ENGINE',
-    detail: 'Failure diagnosed: Mock missing for JWT decode public key in test fixture',
-    status: 'reason',
-    delay: 4300,
-  },
-  {
-    id: 5,
-    icon: '✓',
-    text: 'Inspect test fixture',
-    toolName: 'FILE READER',
-    query: 'tests/test_auth.py',
-    detail: 'Found unmocked verify_jwt call in test_login_success()',
-    status: 'done',
-    delay: 5100,
-  },
-  {
-    id: 6,
-    icon: '✓',
-    text: 'Apply targeted patch',
-    toolName: 'FILE WRITER',
-    detail: 'Injected monkeypatch for auth.decode_token fixture',
-    status: 'done',
-    delay: 5900,
-  },
-  {
-    id: 7,
-    icon: '✓',
-    text: 'Re-run test suite',
-    toolName: 'SHELL',
-    query: 'pytest -v',
-    detail: '12 / 12 test assertions passing cleanly in sandbox environment',
-    status: 'done',
-    delay: 6700,
-  },
-  {
-    id: 8,
-    icon: '✓',
-    text: 'Verification confirmed',
-    toolName: 'VERIFIER',
-    detail: 'Regression resolved. Patch ready for review.',
-    status: 'success',
-    delay: 7500,
-  },
-];
+interface RunTelemetry {
+  status: 'completed' | 'failed';
+  finalAnswer: string;
+  eventsCount: number;
+  durationSeconds: number;
+  toolsUsed: string[];
+  recoveryAttempts: number;
+  rawEvents: BackendEvent[];
+}
 
 const STATUS_COLOR: Record<TraceStep['status'], string> = {
   done: '#F5F5F7',
@@ -112,6 +33,118 @@ const STATUS_COLOR: Record<TraceStep['status'], string> = {
   reason: '#BF5AF2',
   success: '#52D123',
 };
+
+/**
+ * Maps real backend events into the visual TraceStep format used by Figma UI.
+ */
+function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
+  return events.map((evt, idx) => {
+    const eventType = (evt.type || '').toLowerCase();
+
+    // 1. Plan created by AgentCore
+    if (eventType === 'plan') {
+      return {
+        id: idx,
+        icon: '✓',
+        text: 'Plan synthesized',
+        toolName: 'AGENT CORE',
+        detail: evt.message || 'Execution strategy synthesized',
+        status: 'done',
+      };
+    }
+
+    // 2. Tool invocation initiated by AgentCore
+    if (eventType === 'tool_call') {
+      const toolName = evt.tool ? evt.tool.toUpperCase() : 'TOOL';
+      let argsString = '';
+      if (evt.arguments) {
+        if (typeof evt.arguments === 'object') {
+          try {
+            argsString = JSON.stringify(evt.arguments);
+          } catch {
+            argsString = String(evt.arguments);
+          }
+        } else {
+          argsString = String(evt.arguments);
+        }
+      }
+
+      return {
+        id: idx,
+        icon: '▶',
+        text: `Executing ${evt.tool || 'tool'}`,
+        toolName,
+        query: argsString ? argsString.slice(0, 120) : undefined,
+        detail: evt.thought || evt.message || (argsString ? `Arguments: ${argsString}` : undefined),
+        status: 'active',
+      };
+    }
+
+    // 3. Tool result returned
+    if (eventType === 'tool_result') {
+      const isErr = evt.status === 'error' || Boolean(evt.error);
+      const toolName = evt.tool ? evt.tool.toUpperCase() : 'TOOL';
+      const detailContent = isErr
+        ? (evt.error || evt.data || evt.message || 'Tool encountered an error.')
+        : (evt.data || evt.message || 'Tool executed successfully.');
+
+      return {
+        id: idx,
+        icon: isErr ? '⚠' : '✓',
+        text: isErr ? `${toolName} execution error` : `${toolName} completed`,
+        toolName,
+        detail: detailContent,
+        status: isErr ? 'fail' : 'done',
+      };
+    }
+
+    // 4. Reflection / reasoning step
+    if (eventType === 'reflection') {
+      return {
+        id: idx,
+        icon: '↻',
+        text: 'Replanning alternate strategy',
+        toolName: 'REASONING ENGINE',
+        detail: evt.message || 'Adaptive reflection incorporated into reasoning loop.',
+        status: 'reason',
+      };
+    }
+
+    // 5. Final completion step
+    if (eventType === 'final') {
+      return {
+        id: idx,
+        icon: '✓',
+        text: 'Verification confirmed',
+        toolName: 'VERIFIER',
+        detail: evt.summary || evt.message || 'Task completed.',
+        status: 'success',
+      };
+    }
+
+    // 6. Explicit failure event
+    if (eventType === 'error') {
+      return {
+        id: idx,
+        icon: '✕',
+        text: 'Execution failed',
+        toolName: 'AGENT CORE',
+        detail: evt.message || evt.error || 'Encountered execution error.',
+        status: 'fail',
+      };
+    }
+
+    // Fallback for any unexpected backend event type
+    return {
+      id: idx,
+      icon: evt.status === 'error' ? '⚠' : '✓',
+      text: evt.message || `Step ${evt.step || idx + 1}`,
+      toolName: (evt.tool || 'AGENT').toUpperCase(),
+      detail: evt.detail || evt.message || evt.data,
+      status: evt.status === 'error' ? 'fail' : 'done',
+    };
+  });
+}
 
 /* ─────────────────────────────────────────────────────────
    Left Sidebar: Apple Dark Glass
@@ -178,7 +211,7 @@ function Sidebar({ onBack }: { onBack: () => void }) {
         <div className="w-2 h-2 rounded-full bg-[#52D123] shadow-[0_0_8px_#52D123]" />
         <div>
           <div className="text-xs font-bold text-white">Apple Sandbox</div>
-          <div className="text-[9px] mono text-[#86868B]">daemon: active</div>
+          <div className="text-[9px] mono text-[#86868B]">backend: connected</div>
         </div>
       </div>
     </aside>
@@ -188,9 +221,58 @@ function Sidebar({ onBack }: { onBack: () => void }) {
 /* ─────────────────────────────────────────────────────────
    Right Context Panel: Apple Telemetry
 ───────────────────────────────────────────────────────── */
-function RunPanel({ phase }: { phase: Phase }) {
-  const statusLabel = phase === 'compose' ? 'Ready' : phase === 'running' ? 'Investigating' : 'Verified';
-  const statusColor = phase === 'compose' ? '#86868B' : phase === 'running' ? '#287FEA' : '#52D123';
+function RunPanel({
+  phase,
+  telemetry,
+}: {
+  phase: Phase;
+  telemetry: RunTelemetry | null;
+}) {
+  const isComplete = phase === 'complete';
+  const isRunning = phase === 'running';
+  const isSuccess = telemetry?.status === 'completed';
+
+  const statusLabel =
+    phase === 'compose'
+      ? 'Ready'
+      : isRunning
+      ? 'Investigating'
+      : isSuccess
+      ? 'Verified'
+      : 'Failed';
+
+  const statusColor =
+    phase === 'compose'
+      ? '#86868B'
+      : isRunning
+      ? '#287FEA'
+      : isSuccess
+      ? '#52D123'
+      : '#FF453A';
+
+  const stepsDisplay = isComplete
+    ? `${telemetry?.eventsCount ?? 0} events`
+    : isRunning
+    ? 'Active...'
+    : '—';
+
+  const durationDisplay = isComplete
+    ? `${telemetry?.durationSeconds ?? 0}s`
+    : isRunning
+    ? 'Running'
+    : '—';
+
+  const toolsDisplay = isComplete
+    ? (telemetry?.toolsUsed.length ? telemetry.toolsUsed.join(', ') : 'Agent Core')
+    : isRunning
+    ? 'Active'
+    : '—';
+
+  const recoveryDisplay = isComplete
+    ? `${telemetry?.recoveryAttempts ?? 0} attempts`
+    : isRunning
+    ? 'Monitoring'
+    : '—';
 
   return (
     <aside className="hidden lg:block shrink-0 select-none my-4 mr-4" style={{ width: 230 }}>
@@ -213,12 +295,12 @@ function RunPanel({ phase }: { phase: Phase }) {
         {/* Grouped metrics */}
         <div className="space-y-3">
           {[
-            { label: 'REPOSITORY', value: 'broken-login', mono: true },
+            { label: 'REPOSITORY', value: 'RepoPilot (Workspace)', mono: false },
             { label: 'BRANCH', value: 'main', mono: true },
-            { label: 'STEPS', value: phase === 'complete' ? '10' : phase === 'running' ? 'Active...' : '—', mono: false },
-            { label: 'DURATION', value: phase === 'complete' ? '00:08s' : phase === 'running' ? 'Running' : '—', mono: true },
-            { label: 'TOOLS', value: 'File Reader, Shell', mono: false },
-            { label: 'RECOVERY', value: phase === 'complete' ? '2 attempts' : '—', mono: false },
+            { label: 'EVENTS', value: stepsDisplay, mono: false },
+            { label: 'DURATION', value: durationDisplay, mono: true },
+            { label: 'TOOLS', value: toolsDisplay, mono: false },
+            { label: 'RECOVERY', value: recoveryDisplay, mono: false },
           ].map(r => (
             <div key={r.label}>
               <div className="mono text-[9px] tracking-widest text-[#86868B] font-semibold mb-0.5">
@@ -267,11 +349,19 @@ function RunPanel({ phase }: { phase: Phase }) {
 /* ─────────────────────────────────────────────────────────
    Composer View
 ───────────────────────────────────────────────────────── */
-function ComposeView({ onRun }: { onRun: () => void }) {
-  const [text, setText] = useState(
-    'Authentication tests are failing after the latest merge. The login() function returns 403 even with valid credentials in tests/test_auth.py.'
-  );
-
+function ComposeView({
+  text,
+  onTextChange,
+  onRun,
+  errorMessage,
+  onClearError,
+}: {
+  text: string;
+  onTextChange: (val: string) => void;
+  onRun: () => void;
+  errorMessage: string | null;
+  onClearError: () => void;
+}) {
   return (
     <div className="flex-1 flex flex-col justify-center py-6 px-2">
       <div className="max-w-2xl mx-auto w-full">
@@ -292,6 +382,27 @@ function ComposeView({ onRun }: { onRun: () => void }) {
           </p>
         </div>
 
+        {/* Error Notification Banner */}
+        {errorMessage && (
+          <div className="mb-5 p-4 rounded-2xl bg-[#FF453A]/15 border border-[#FF453A]/30 text-white flex items-start gap-3">
+            <div className="w-5 h-5 rounded-full bg-[#FF453A] text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+              ✕
+            </div>
+            <div className="flex-1 text-xs">
+              <div className="font-semibold text-[#FF453A] mb-0.5">Execution / Backend Error</div>
+              <div className="text-white/90 leading-relaxed font-mono text-[11px]">{errorMessage}</div>
+            </div>
+            <button
+              type="button"
+              onClick={onClearError}
+              className="text-white/60 hover:text-white text-xs cursor-pointer px-1"
+              title="Dismiss error"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Tactile Composer Glass Card */}
         <TiltCard variant="elevated" className="rounded-3xl p-7 mb-5 border border-white/10 shadow-2xl">
           <textarea
@@ -299,7 +410,7 @@ function ComposeView({ onRun }: { onRun: () => void }) {
             style={{ minHeight: 120 }}
             placeholder="Describe the bug or paste the failing stack trace..."
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={e => onTextChange(e.target.value)}
           />
 
           <div className="border-t border-white/10 pt-5 mt-3">
@@ -312,7 +423,7 @@ function ComposeView({ onRun }: { onRun: () => void }) {
                 <div className="bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 flex items-center justify-between cursor-pointer">
                   <div className="flex items-center gap-2">
                     <span className="text-[#86868B] text-xs">⎇</span>
-                    <span className="text-xs font-semibold text-white">broken-login</span>
+                    <span className="text-xs font-semibold text-white">RepoPilot (Workspace)</span>
                   </div>
                   <span className="text-[#86868B] text-xs">▾</span>
                 </div>
@@ -352,7 +463,7 @@ function ComposeView({ onRun }: { onRun: () => void }) {
               type="button"
               data-hover
               onClick={() => {
-                setText(`Execute automated ${a.toLowerCase()} on the active repository workspace.`);
+                onTextChange(`Execute automated ${a.toLowerCase()} on the active repository workspace.`);
               }}
               className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-3.5 py-2 text-xs font-medium text-[#86868B] hover:text-white transition-all duration-150 cursor-pointer"
             >
@@ -376,7 +487,7 @@ function RunningView({ steps, currentStep }: { steps: TraceStep[]; currentStep: 
     traceEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [steps.length]);
 
-  const activeStep = TRACE[Math.min(currentStep, TRACE.length - 1)];
+  const activeStep = steps.length > 0 ? steps[steps.length - 1] : undefined;
 
   return (
     <div className="flex-1 flex flex-col py-6 px-2 gap-5 max-w-3xl mx-auto w-full">
@@ -394,7 +505,7 @@ function RunningView({ steps, currentStep }: { steps: TraceStep[]; currentStep: 
               RepoPilot is investigating…
             </h2>
             <p className="text-[#86868B] text-xs mt-1">
-              Inspecting authentication flow & synthesizing fix
+              Autonomous reasoning loop in progress
             </p>
           </div>
 
@@ -406,7 +517,7 @@ function RunningView({ steps, currentStep }: { steps: TraceStep[]; currentStep: 
               {activeStep?.toolName || 'AGENT CORE'}
             </div>
             {activeStep?.query && (
-              <div className="mono text-[9px] text-[#287FEA] mt-0.5">
+              <div className="mono text-[9px] text-[#287FEA] mt-0.5 max-w-[180px] truncate">
                 target: {activeStep.query}
               </div>
             )}
@@ -418,13 +529,13 @@ function RunningView({ steps, currentStep }: { steps: TraceStep[]; currentStep: 
           <div className="flex justify-between text-[10px] text-[#86868B] mono mb-1.5">
             <span>Execution Sequence</span>
             <span className="font-bold text-white">
-              {steps.length} / {TRACE.length} steps completed
+              {steps.length} {steps.length === 1 ? 'event' : 'events'} recorded
             </span>
           </div>
           <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
             <div
-              className="h-full rounded-full bg-[#287FEA] transition-all duration-500 shadow-[0_0_10px_#287FEA]"
-              style={{ width: `${(steps.length / TRACE.length) * 100}%` }}
+              className="h-full rounded-full bg-[#287FEA] transition-all duration-500 shadow-[0_0_10px_#287FEA] animate-pulse"
+              style={{ width: `${Math.min(100, Math.max(15, steps.length * 15))}%` }}
             />
           </div>
         </div>
@@ -493,10 +604,10 @@ function RunningView({ steps, currentStep }: { steps: TraceStep[]; currentStep: 
                   {isExpanded && step.detail && (
                     <div className="mt-2 p-3 rounded-xl bg-[#000000] text-white/90 mono text-[10px] leading-relaxed shadow-md border border-white/10">
                       <div className="text-[#86868B] mb-1">TELEMETRY DETAIL:</div>
-                      <div>{step.detail}</div>
+                      <div className="whitespace-pre-wrap">{step.detail}</div>
                       {step.query && (
-                        <div className="mt-1.5 pt-1.5 border-t border-white/10 text-[#287FEA]">
-                          cmd/target: {step.query}
+                        <div className="mt-1.5 pt-1.5 border-t border-white/10 text-[#287FEA] break-all">
+                          cmd/args: {step.query}
                         </div>
                       )}
                     </div>
@@ -515,20 +626,48 @@ function RunningView({ steps, currentStep }: { steps: TraceStep[]; currentStep: 
 /* ─────────────────────────────────────────────────────────
    Complete Result View
 ───────────────────────────────────────────────────────── */
-function CompleteView({ onReset }: { onReset: () => void }) {
+function CompleteView({
+  onReset,
+  telemetry,
+}: {
+  onReset: () => void;
+  telemetry: RunTelemetry | null;
+}) {
+  const [showJson, setShowJson] = useState(false);
+  const [showDiff, setShowDiff] = useState(false);
+
+  const isSuccess = telemetry?.status === 'completed';
+  const statusColor = isSuccess ? '#52D123' : '#FF453A';
+  const badgeLabel = isSuccess ? 'VERIFIED' : 'FAILED';
+  const headline = isSuccess ? 'Verified.' : 'Execution Completed.';
+
+  // Check if any tool result contains diff or file modification data
+  const diffEvent = telemetry?.rawEvents?.find(
+    e =>
+      e.tool === 'apply_diff' ||
+      (typeof e.data === 'string' && (e.data.includes('diff --git') || e.data.includes('@@ ')))
+  );
+  const diffContent = diffEvent ? (diffEvent.data || diffEvent.message) : null;
+
   return (
     <div className="flex-1 flex flex-col py-6 px-2 gap-5 max-w-3xl mx-auto w-full">
       {/* Verified Hero Card */}
       <TechnicalSurface
         title="VERIFICATION_REPORT"
-        badge="VERIFIED"
-        badgeColor="#52D123"
+        badge={badgeLabel}
+        badgeColor={statusColor}
         className="p-8 border border-white/10"
       >
         <div className="flex items-center gap-2 mb-3">
-          <span className="status-dot bg-[#52D123] animate-node-pulse" />
-          <span className="mono text-[10px] tracking-widest text-[#52D123] font-bold uppercase">
-            EMPIRICAL CONFIRMATION
+          <span
+            className="status-dot animate-node-pulse"
+            style={{ backgroundColor: statusColor }}
+          />
+          <span
+            className="mono text-[10px] tracking-widest font-bold uppercase"
+            style={{ color: statusColor }}
+          >
+            {isSuccess ? 'EMPIRICAL CONFIRMATION' : 'EXECUTION SUMMARY'}
           </span>
         </div>
 
@@ -536,22 +675,27 @@ function CompleteView({ onReset }: { onReset: () => void }) {
           className="font-extrabold text-white tracking-tight mb-3"
           style={{ fontSize: 'clamp(34px, 4.5vw, 52px)' }}
         >
-          Verified.
+          {headline}
         </h1>
 
-        <p className="text-[#86868B] text-xs max-w-md leading-relaxed mb-6">
-          RepoPilot identified the regression, synthesized an alternate mock fixture via
-          adaptive reflection, and proved resolution by passing 100% of test assertions.
-        </p>
+        <div className="text-[#86868B] text-xs max-w-2xl leading-relaxed mb-6 font-mono whitespace-pre-wrap bg-white/5 p-4 rounded-xl border border-white/10">
+          {telemetry?.finalAnswer || 'Task completed without final answer text.'}
+        </div>
 
         <div className="flex flex-wrap gap-3">
-          {['Problem identified', 'Fix applied', 'Verification passed'].map(item => (
+          {[
+            { label: isSuccess ? 'Task goal satisfied' : 'Task goal incomplete', ok: isSuccess },
+            { label: `${telemetry?.eventsCount ?? 0} events executed`, ok: true },
+            { label: `${telemetry?.toolsUsed.length ?? 0} tools engaged`, ok: true },
+          ].map(item => (
             <div
-              key={item}
+              key={item.label}
               className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3.5 py-1.5"
             >
-              <span className="text-[#52D123] text-xs font-bold">✓</span>
-              <span className="text-white/90 text-xs font-medium">{item}</span>
+              <span className={`text-xs font-bold ${item.ok ? 'text-[#52D123]' : 'text-[#FF453A]'}`}>
+                {item.ok ? '✓' : '✕'}
+              </span>
+              <span className="text-white/90 text-xs font-medium">{item.label}</span>
             </div>
           ))}
         </div>
@@ -560,22 +704,37 @@ function CompleteView({ onReset }: { onReset: () => void }) {
       {/* Test Execution Summary */}
       <div className="glass-elevated rounded-3xl p-6 border border-white/10">
         <div className="flex items-center justify-between mb-2">
-          <span className="mono text-[10px] font-bold tracking-widest text-[#52D123] uppercase">
-            TEST EXECUTION RESULT
+          <span
+            className="mono text-[10px] font-bold tracking-widest uppercase"
+            style={{ color: statusColor }}
+          >
+            AGENT EXECUTION RESULT
           </span>
-          <span className="mono text-sm font-bold text-[#52D123]">12 / 12 PASSING</span>
+          <span
+            className="mono text-sm font-bold uppercase"
+            style={{ color: statusColor }}
+          >
+            {isSuccess ? 'STATUS: COMPLETED' : 'STATUS: FAILED'}
+          </span>
         </div>
 
         <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-6">
-          <div className="h-full rounded-full bg-[#52D123] w-full shadow-[0_0_10px_#52D123]" />
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: '100%',
+              backgroundColor: statusColor,
+              boxShadow: `0 0 10px ${statusColor}`,
+            }}
+          />
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-6 border-b border-white/10">
           {[
-            { label: 'Duration', value: '00:08s', mono: true },
-            { label: 'Steps', value: '10 run', mono: false },
-            { label: 'Tools Used', value: '2 tools', mono: false },
-            { label: 'Recovery', value: '2 attempts', mono: false },
+            { label: 'Duration', value: `${telemetry?.durationSeconds ?? 0}s`, mono: true },
+            { label: 'Events Run', value: `${telemetry?.eventsCount ?? 0} events`, mono: false },
+            { label: 'Tools Used', value: telemetry?.toolsUsed.length ? `${telemetry.toolsUsed.length} tools` : 'None', mono: false },
+            { label: 'Recovery', value: `${telemetry?.recoveryAttempts ?? 0} attempts`, mono: false },
           ].map(s => (
             <div key={s.label}>
               <div className="mono text-[9px] tracking-widest text-[#86868B] font-semibold mb-1">
@@ -601,18 +760,44 @@ function CompleteView({ onReset }: { onReset: () => void }) {
           <button
             type="button"
             data-hover
+            onClick={() => setShowDiff(prev => !prev)}
             className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-5 py-2.5 text-xs font-semibold text-white transition-all cursor-pointer"
           >
-            View Diff Patch
+            {showDiff ? 'Hide Diff Patch' : 'View Diff Patch'}
           </button>
           <button
             type="button"
             data-hover
+            onClick={() => setShowJson(prev => !prev)}
             className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-5 py-2.5 text-xs font-semibold text-white transition-all cursor-pointer"
           >
-            View Trace JSON
+            {showJson ? 'Hide Trace JSON' : 'View Trace JSON'}
           </button>
         </div>
+
+        {/* Expandable Diff view */}
+        {showDiff && (
+          <div className="mt-4 p-4 rounded-2xl bg-black border border-white/10 text-xs mono overflow-x-auto text-[#86868B] max-h-60">
+            {diffContent ? (
+              <pre className="text-white/90 whitespace-pre-wrap">{diffContent}</pre>
+            ) : (
+              <div className="text-[#86868B]">No git diff patch recorded in this task execution.</div>
+            )}
+          </div>
+        )}
+
+        {/* Expandable JSON view */}
+        {showJson && (
+          <div className="mt-4 p-4 rounded-2xl bg-black border border-white/10 text-xs mono overflow-x-auto text-[#86868B] max-h-72">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+              <span className="mono text-[10px] text-white font-bold">RAW EXECUTION EVENTS JSON</span>
+              <span className="text-[10px] text-[#86868B]">{telemetry?.rawEvents.length || 0} events</span>
+            </div>
+            <pre className="text-[#52D123] whitespace-pre-wrap">
+              {JSON.stringify(telemetry?.rawEvents || [], null, 2)}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -630,38 +815,108 @@ export default function Demo({
   activeColor?: ColorTheme;
 }) {
   const [phase, setPhase] = useState<Phase>('compose');
+  const [text, setText] = useState(
+    'Authentication tests are failing after the latest merge. The login() function returns 403 even with valid credentials in tests/test_auth.py.'
+  );
   const [visibleSteps, setVisibleSteps] = useState<TraceStep[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [runTelemetry, setRunTelemetry] = useState<RunTelemetry | null>(null);
 
-  const startRun = () => {
+  /**
+   * Executes the real task on the RepoPilot FastAPI backend.
+   */
+  const handleRun = async () => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      setErrorMessage('Please enter a task description before running the agent.');
+      return;
+    }
+
+    setErrorMessage(null);
     setPhase('running');
-    setVisibleSteps([]);
-    setCurrentStep(0);
-  };
+    setVisibleSteps([
+      {
+        id: 0,
+        icon: '●',
+        text: 'Connecting to RepoPilot AgentCore…',
+        toolName: 'AGENT CORE',
+        detail: 'Dispatching task to backend via FastAPI (/api/agent/run)…',
+        status: 'active',
+      },
+    ]);
+    setCurrentStep(1);
 
-  useEffect(() => {
-    if (phase !== 'running') return;
+    const startTime = Date.now();
 
-    TRACE.forEach(step => {
-      timerRef.current = setTimeout(() => {
-        setVisibleSteps(prev => [...prev, step]);
-        setCurrentStep(step.id + 1);
-        if (step.id === TRACE.length - 1) {
-          setTimeout(() => setPhase('complete'), 800);
+    try {
+      // Execute the task via the Vite-proxied FastAPI backend endpoint
+      const response = await runAgentTask({ task: trimmed });
+      const elapsed = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+      const backendSteps = mapBackendEventsToTraceSteps(response.events || []);
+
+      // Extract telemetry from real backend events
+      const toolsSet = new Set<string>();
+      let recoveries = 0;
+      for (const ev of response.events || []) {
+        if (ev.tool) toolsSet.add(ev.tool);
+        if (ev.type === 'reflection' || (ev.type === 'tool_result' && ev.status === 'error')) {
+          recoveries++;
         }
-      }, step.delay);
-    });
+      }
 
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [phase]);
+      const telemetry: RunTelemetry = {
+        status: response.status === 'completed' ? 'completed' : 'failed',
+        finalAnswer:
+          response.final_answer ||
+          (response.status === 'completed'
+            ? 'Task completed successfully.'
+            : 'Task ended with failure status.'),
+        eventsCount: response.events?.length || 0,
+        durationSeconds: elapsed,
+        toolsUsed: Array.from(toolsSet),
+        recoveryAttempts: recoveries,
+        rawEvents: response.events || [],
+      };
+
+      setRunTelemetry(telemetry);
+
+      // Sequentially display steps so the user sees the real events stream into the UI
+      if (backendSteps.length === 0) {
+        setVisibleSteps([
+          {
+            id: 0,
+            icon: response.status === 'completed' ? '✓' : '⚠',
+            text: response.status === 'completed' ? 'Task completed' : 'Task halted',
+            toolName: 'AGENT CORE',
+            detail: response.final_answer || 'No events were recorded.',
+            status: response.status === 'completed' ? 'success' : 'fail',
+          },
+        ]);
+        setCurrentStep(1);
+        setTimeout(() => setPhase('complete'), 400);
+      } else {
+        setVisibleSteps([]);
+        for (let i = 0; i < backendSteps.length; i++) {
+          setVisibleSteps(prev => [...prev, backendSteps[i]]);
+          setCurrentStep(i + 1);
+          await new Promise(r => setTimeout(r, 120));
+        }
+        setTimeout(() => setPhase('complete'), 500);
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || 'Unknown backend execution error occurred.';
+      setErrorMessage(errMsg);
+      // Return to compose view to allow the user to retry while preserving the prompt
+      setPhase('compose');
+    }
+  };
 
   const reset = () => {
     setPhase('compose');
     setVisibleSteps([]);
     setCurrentStep(0);
+    setErrorMessage(null);
   };
 
   return (
@@ -684,7 +939,7 @@ export default function Demo({
             </button>
             <div className="h-4 w-px bg-white/10" />
             <span className="text-xs font-bold text-white tracking-tight uppercase mono">
-              Workspace / broken-login
+              Workspace / RepoPilot
             </span>
           </div>
 
@@ -698,10 +953,35 @@ export default function Demo({
               </div>
             )}
             {phase === 'complete' && (
-              <div className="flex items-center gap-2 bg-[#52D123]/15 border border-[#52D123]/30 rounded-full px-3 py-1">
-                <span className="status-dot bg-[#52D123]" />
-                <span className="mono text-[10px] tracking-widest text-[#52D123] font-bold">
-                  VERIFIED
+              <div
+                className="flex items-center gap-2 rounded-full px-3 py-1"
+                style={{
+                  backgroundColor:
+                    runTelemetry?.status === 'completed'
+                      ? 'rgba(82,209,35,0.15)'
+                      : 'rgba(255,69,58,0.15)',
+                  borderColor:
+                    runTelemetry?.status === 'completed'
+                      ? 'rgba(82,209,35,0.3)'
+                      : 'rgba(255,69,58,0.3)',
+                  borderWidth: 1,
+                }}
+              >
+                <span
+                  className="status-dot"
+                  style={{
+                    backgroundColor:
+                      runTelemetry?.status === 'completed' ? '#52D123' : '#FF453A',
+                  }}
+                />
+                <span
+                  className="mono text-[10px] tracking-widest font-bold uppercase"
+                  style={{
+                    color:
+                      runTelemetry?.status === 'completed' ? '#52D123' : '#FF453A',
+                  }}
+                >
+                  {runTelemetry?.status === 'completed' ? 'VERIFIED' : 'FAILED'}
                 </span>
               </div>
             )}
@@ -711,14 +991,24 @@ export default function Demo({
         {/* Workspace Content + Right Context */}
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 flex flex-col overflow-y-auto px-4 md:px-8">
-            {phase === 'compose' && <ComposeView onRun={startRun} />}
+            {phase === 'compose' && (
+              <ComposeView
+                text={text}
+                onTextChange={setText}
+                onRun={handleRun}
+                errorMessage={errorMessage}
+                onClearError={() => setErrorMessage(null)}
+              />
+            )}
             {phase === 'running' && (
               <RunningView steps={visibleSteps} currentStep={currentStep} />
             )}
-            {phase === 'complete' && <CompleteView onReset={reset} />}
+            {phase === 'complete' && (
+              <CompleteView onReset={reset} telemetry={runTelemetry} />
+            )}
           </div>
 
-          <RunPanel phase={phase} />
+          <RunPanel phase={phase} telemetry={runTelemetry} />
         </div>
       </main>
     </div>

@@ -27,6 +27,7 @@ import LoginModal from './components/LoginModal.jsx';
 import DocsModal from './components/DocsModal.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import ToastContainer from './components/Toast.jsx';
+import { runAgentTask } from './services/api.js';
 import { SCENARIOS, runMockAgentSimulation } from './services/mockAgent.js';
 import { 
   History, 
@@ -171,69 +172,123 @@ function AppContent() {
   }, []);
 
   /**
-   * Launch progressive mock agent execution.
+   * Launch real AgentCore execution via backend API.
    */
-  const handleRunAgent = ({ repository, branch, task, scenario }) => {
+  const handleRunAgent = async ({ repository, branch, task, scenario }) => {
     // Abort active run if any
+    let isAborted = false;
     if (cancelSimulationRef.current) {
       cancelSimulationRef.current();
     }
+    cancelSimulationRef.current = () => {
+      isAborted = true;
+    };
 
-    const resolvedScenario = scenario || demoScenario;
     const taskData = {
-      repository: repository || 'demo/projects/broken-login',
+      repository: repository || 'RepoPilot (Workspace)',
       branch: branch || 'main',
-      task: task || 'Fix the login API returning HTTP 500.',
-      scenario: resolvedScenario,
+      task: task || 'Read README.md and tell me what this project is about.',
+      scenario: scenario || demoScenario,
     };
 
     setActiveTask(taskData);
     setIsRunningMock(true);
     setTraceEvents([]);
     setDurationSeconds(0);
-    setCurrentStatus('PLANNING');
+    setCurrentStatus('RUNNING');
     setWorkspaceMode('execution');
     if (currentView !== 'workspace') {
       setCurrentView('workspace');
     }
 
-    toast.info(`Agent analyzing repository on branch: ${taskData.branch}`);
+    toast.info(`RepoPilot dispatched: "${taskData.task.slice(0, 45)}..."`);
 
-    // Progressive timer simulation
-    cancelSimulationRef.current = runMockAgentSimulation({
-      scenario: resolvedScenario,
-      intervalMs: simulationSpeed,
-      onEvent: (event) => {
-        setTraceEvents((prev) => [...prev, event]);
-      },
-      onStatusChange: (status) => {
-        setCurrentStatus(status);
-      },
-      onComplete: (finalEvent) => {
-        setIsRunningMock(false);
-        setCurrentStatus('COMPLETED');
-        toast.success('Agent verified resolution with zero regressions!');
+    try {
+      // Call REAL AgentCore backend API
+      const result = await runAgentTask({
+        task: taskData.task,
+        repository: taskData.repository,
+      });
 
-        // Append to recent runs
-        const newRunItem = {
-          id: `run_${Date.now()}`,
-          title: taskData.task.slice(0, 36) + (taskData.task.length > 36 ? '...' : ''),
-          repository: taskData.repository,
-          branch: taskData.branch,
-          task: taskData.task,
-          scenario: resolvedScenario,
-          status: 'Completed',
-          timestamp: 'Just now',
-          steps: `${resolvedScenario === SCENARIOS.FAILURE_RECOVERY ? 7 : 5} steps`,
-          toolsUsed: ['search_codebase', 'inspect_ast', 'run_pytest', 'apply_diff'],
-          errors: resolvedScenario === SCENARIOS.FAILURE_RECOVERY ? 1 : 0,
-          recoveries: resolvedScenario === SCENARIOS.FAILURE_RECOVERY ? 1 : 0,
-          duration: durationSeconds || 14,
-        };
+      if (isAborted) return;
 
-        setRecentRuns((prev) => [newRunItem, ...prev.slice(0, 9)]);
-      },
-    });
+      const events = result.events || [];
+
+      // Sequentially reveal events with smooth cadence
+      if (events.length <= 1) {
+        setTraceEvents(events);
+      } else {
+        for (let i = 0; i < events.length; i++) {
+          if (isAborted) return;
+          setTraceEvents((prev) => [...prev, events[i]]);
+          // Quick cadence between steps so trace feels live
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+      }
+
+      if (isAborted) return;
+
+      const isSuccess = result.status === 'completed';
+      setIsRunningMock(false);
+      setCurrentStatus(isSuccess ? 'COMPLETED' : 'FAILED');
+
+      if (isSuccess) {
+        toast.success('Agent completed task with verified resolution!');
+      } else {
+        toast.warning('Agent completed with failed status.');
+      }
+
+      // Collect tools used and errors from actual events
+      const toolsUsed = Array.from(
+        new Set(
+          events
+            .filter((e) => e.type === 'tool_call' && e.tool)
+            .map((e) => e.tool)
+        )
+      );
+      const errorsCount = events.filter(
+        (e) =>
+          e.type === 'error' ||
+          (e.type === 'tool_result' && (e.error || e.status === 'error'))
+      ).length;
+
+      const newRunItem = {
+        id: `run_${Date.now()}`,
+        title: taskData.task.slice(0, 36) + (taskData.task.length > 36 ? '...' : ''),
+        repository: taskData.repository,
+        branch: taskData.branch,
+        task: taskData.task,
+        scenario: taskData.scenario,
+        status: isSuccess ? 'Completed' : 'Failed',
+        timestamp: 'Just now',
+        steps: `${events.length} steps`,
+        toolsUsed: toolsUsed.length > 0 ? toolsUsed : ['file_tool'],
+        errors: errorsCount,
+        recoveries: errorsCount > 0 ? 1 : 0,
+        duration: durationSeconds || 10,
+      };
+
+      setRecentRuns((prev) => [newRunItem, ...prev.slice(0, 9)]);
+    } catch (err) {
+      if (isAborted) return;
+      console.error('Agent execution error:', err);
+      setIsRunningMock(false);
+      setCurrentStatus('FAILED');
+      toast.error(`Agent execution error: ${err.message}`);
+
+      // Add actual error event to trace so the user sees it visually without crashing the UI
+      setTraceEvents((prev) => [
+        ...prev,
+        {
+          step: prev.length + 1,
+          type: 'error',
+          tool: 'AgentCore',
+          error: err.message,
+          message: `Execution halted: ${err.message}`,
+          status: 'error',
+        },
+      ]);
+    }
   };
 
   /**
