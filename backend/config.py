@@ -37,7 +37,7 @@ class Settings:
 
     # LLM settings
     LLM_API_KEY: str = os.getenv("LLM_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemini-3.5-flash")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemini-3.6-flash")
 
     # Search Tool settings
     SEARCH_API_KEY: str = os.getenv("SEARCH_API_KEY", "")

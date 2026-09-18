@@ -19,6 +19,7 @@ DEFAULT_INSTRUCTIONS = """You MUST respond with a single valid JSON object in ON
 1. To call a tool:
 {
     "type": "tool_call",
+    "thought": "<reasoning explaining what you are doing and why>",
     "tool": "<tool_name>",
     "arguments": {
         "<param_name>": "<param_value>"
@@ -28,10 +29,16 @@ DEFAULT_INSTRUCTIONS = """You MUST respond with a single valid JSON object in ON
 2. When the task is complete:
 {
     "type": "final",
+    "thought": "<summary of how the solution was achieved and verified>",
     "answer": "<final summary or resolution>"
 }
 
-Do NOT output any markdown commentary or text outside the JSON object.
+ACTION GUIDELINES:
+- When asked to fix a bug, calculation error, or code issue, ACTUALLY SOLVE IT by modifying the repository files.
+- Do NOT just explain what the fix is in text: use `file_tool` with `action: "write"` or `action: "patch"` to write the fixed code to the file.
+- After modifying the file, use `shell_tool` to run the relevant tests or verification script to confirm that the tests now pass.
+- Only return the `final` answer after you have actually resolved and verified the problem.
+- Do NOT output any markdown commentary or text outside the JSON object.
 """
 
 

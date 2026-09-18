@@ -10,7 +10,7 @@ Responsibilities:
 """
 
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 import inspect
 from typing import Dict, Any, Callable, List, Optional, Union
 
@@ -73,7 +73,7 @@ class AgentEvent:
         )
         self.status = status or self.payload.get("status")
         self.error = error or self.payload.get("error")
-        self.timestamp = timestamp or datetime.utcnow().isoformat()
+        self.timestamp = timestamp or datetime.now(timezone.utc).isoformat()
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert the event to a plain dictionary for JSON/API serialization."""

@@ -66,7 +66,7 @@ export async function runAgentTask({
       body: JSON.stringify({
         task: trimmedTask,
         target_repo_path: target_repo_path ?? null,
-        max_steps: max_steps ?? 10,
+        max_steps: max_steps || 15,
       }),
     });
   } catch (networkErr: any) {

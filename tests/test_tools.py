@@ -255,6 +255,22 @@ class TestFileTool(unittest.TestCase):
         self.assertEqual(res_search["status"], "success")
         self.assertIsInstance(res_search["data"], list)
 
+    def test_file_tool_write(self):
+        """Write file creates file and parent directories, and updates content."""
+        tool = FileTool(workspace_root=self.tmp_path)
+        res = tool.execute({"action": "write", "path": "nested/dir/code.py", "content": "x = 42\n"})
+        self.assertEqual(res["status"], "success")
+        self.assertTrue((self.tmp_path / "nested" / "dir" / "code.py").exists())
+        self.assertEqual((self.tmp_path / "nested" / "dir" / "code.py").read_text(encoding="utf-8"), "x = 42\n")
+
+    def test_file_tool_patch(self):
+        """Patch file replaces target substring with replacement text."""
+        (self.tmp_path / "app.py").write_text("def check():\n    return False\n", encoding="utf-8")
+        tool = FileTool(workspace_root=self.tmp_path)
+        res = tool.execute({"action": "patch", "path": "app.py", "find": "return False", "replace": "return True"})
+        self.assertEqual(res["status"], "success")
+        self.assertIn("return True", (self.tmp_path / "app.py").read_text(encoding="utf-8"))
+
 
 # ==============================================================================
 # ShellTool Tests

@@ -21,7 +21,7 @@ class FileTool(BaseTool):
     """Tool for exploring and inspecting files within the repository workspace."""
 
     name: str = "file_tool"
-    description: str = "Read file contents, write/update file contents, list directory entries, or search text across files in the workspace."
+    description: str = "Explore and modify repository files: read file contents, write or edit file content, list directory entries, or search text across files in the workspace."
 
     def __init__(self, workspace_root: Optional[Union[str, Path]] = None):
         if workspace_root:
@@ -37,8 +37,8 @@ class FileTool(BaseTool):
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["list", "read", "search", "write"],
-                    "description": "File system action to perform: 'list', 'read', 'search', or 'write'."
+                    "enum": ["list", "read", "search", "write", "patch"],
+                    "description": "File system action to perform: 'list', 'read', 'search', 'write', or 'patch'."
                 },
                 "path": {
                     "type": "string",
@@ -46,11 +46,19 @@ class FileTool(BaseTool):
                 },
                 "content": {
                     "type": "string",
-                    "description": "Text content to write into the file (required for 'write' action)."
+                    "description": "Complete UTF-8 text content to write to the target file (required for 'write' action)."
                 },
                 "query": {
                     "type": "string",
                     "description": "Search query string (required for 'search' action)."
+                },
+                "find": {
+                    "type": "string",
+                    "description": "Text substring to find in target file (used with 'patch' action)."
+                },
+                "replace": {
+                    "type": "string",
+                    "description": "Replacement text substring to insert in place of 'find' (used with 'patch' action)."
                 }
             },
             "required": ["action", "path"]
@@ -77,10 +85,10 @@ class FileTool(BaseTool):
             })
 
         action = action.strip().lower()
-        if action not in ("list", "read", "search", "write"):
+        if action not in ("list", "read", "search", "write", "patch"):
             return ToolResult({
                 "status": "error",
-                "error": f"Unknown action: '{action}'. Supported actions are: 'list', 'read', 'search'"
+                "error": f"Unknown action: '{action}'. Supported actions are: 'list', 'read', 'search', 'write', 'patch'"
             })
 
         # 2. Validate path
@@ -127,7 +135,11 @@ class FileTool(BaseTool):
                         "status": "error",
                         "error": "Missing required argument: 'content' for action 'write'"
                     })
-                return self._write_file(target_path, raw_path, str(content))
+                return self._write_file(target_path, raw_path, content)
+            elif action == "patch":
+                find_text = params.get("find") if "find" in params else params.get("find_text")
+                replace_text = params.get("replace") if "replace" in params else params.get("replace_text")
+                return self._patch_file(target_path, raw_path, find_text, replace_text)
         except Exception as exc:
             return ToolResult({
                 "status": "error",
@@ -139,20 +151,87 @@ class FileTool(BaseTool):
             "error": f"Unhandled action: {action}"
         })
 
-    def _write_file(self, target_path: Path, raw_path: Any, content: str) -> ToolResult:
-        """Safely write content to a file within target_path."""
+    def _write_file(self, target_path: Path, raw_path: Any, content: Any) -> ToolResult:
+        """Write UTF-8 text content to a target file in the workspace."""
+        if content is None:
+            return ToolResult({
+                "status": "error",
+                "error": "Missing required argument: 'content' for 'write' action"
+            })
+
+        if target_path.exists() and target_path.is_dir():
+            return ToolResult({
+                "status": "error",
+                "error": f"Cannot write to path because it is a directory: '{raw_path}'"
+            })
+
         try:
+            # Ensure parent directories exist
             target_path.parent.mkdir(parents=True, exist_ok=True)
-            target_path.write_text(content, encoding="utf-8")
+            text_content = str(content)
+            target_path.write_text(text_content, encoding="utf-8")
+            bytes_written = len(text_content.encode("utf-8"))
+            lines_count = len(text_content.splitlines())
             return ToolResult({
                 "status": "success",
-                "data": f"Successfully wrote {len(content)} characters to '{raw_path}'",
-                "path": str(raw_path)
+                "data": f"Successfully wrote {bytes_written} bytes ({lines_count} lines) to '{raw_path}'",
+                "path": str(raw_path),
+                "bytes_written": bytes_written,
+                "lines": lines_count,
+                "message": f"Successfully wrote {bytes_written} bytes ({lines_count} lines) to '{raw_path}'"
+            })
+        except PermissionError as pe:
+            return ToolResult({
+                "status": "error",
+                "error": f"Permission denied writing to '{raw_path}': {str(pe)}"
             })
         except Exception as exc:
             return ToolResult({
                 "status": "error",
                 "error": f"Failed to write file '{raw_path}': {str(exc)}"
+            })
+
+    def _patch_file(self, target_path: Path, raw_path: Any, find_text: Any, replace_text: Any) -> ToolResult:
+        """Replace occurrences of find_text with replace_text in target_path."""
+        if not target_path.exists():
+            return ToolResult({
+                "status": "error",
+                "error": f"File not found for patch: '{raw_path}'"
+            })
+        if not target_path.is_file():
+            return ToolResult({
+                "status": "error",
+                "error": f"Path is not a regular file: '{raw_path}'"
+            })
+        if find_text is None or str(find_text) == "":
+            return ToolResult({
+                "status": "error",
+                "error": "Missing required argument: 'find' for 'patch' action"
+            })
+        if replace_text is None:
+            replace_text = ""
+
+        try:
+            original = target_path.read_text(encoding="utf-8")
+            target_find = str(find_text)
+            if target_find not in original:
+                return ToolResult({
+                    "status": "error",
+                    "error": f"Target substring to find was not found in '{raw_path}'"
+                })
+
+            updated = original.replace(target_find, str(replace_text), 1)
+            target_path.write_text(updated, encoding="utf-8")
+            return ToolResult({
+                "status": "success",
+                "data": f"Successfully patched '{raw_path}'",
+                "path": str(raw_path),
+                "message": f"Successfully patched '{raw_path}'"
+            })
+        except Exception as exc:
+            return ToolResult({
+                "status": "error",
+                "error": f"Failed to patch file '{raw_path}': {str(exc)}"
             })
 
     def _list_directory(self, target_path: Path, raw_path: Any) -> ToolResult:

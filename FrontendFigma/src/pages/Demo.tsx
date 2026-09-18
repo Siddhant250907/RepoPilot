@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import TiltCard from '../components/TiltCard';
 import TechnicalSurface from '../components/TechnicalSurface';
 import { ColorTheme } from '../components/AppleHeroPedestal';
-import { runAgentTask, BackendEvent } from '../services/api';
+import { runAgentTask, checkBackendHealth, BackendEvent } from '../services/api';
 
-type Phase = 'compose' | 'running' | 'complete';
+export type Phase = 'compose' | 'running' | 'complete';
+export type TabId = 'new' | 'ws' | 'runs' | 'repos' | 'set';
 
-interface TraceStep {
+export interface TraceStep {
   id: number;
   icon: string;
   text: string;
@@ -16,7 +17,7 @@ interface TraceStep {
   status: 'done' | 'active' | 'fail' | 'reason' | 'success';
 }
 
-interface RunTelemetry {
+export interface RunTelemetry {
   status: 'completed' | 'failed';
   finalAnswer: string;
   eventsCount: number;
@@ -26,6 +27,89 @@ interface RunTelemetry {
   rawEvents: BackendEvent[];
 }
 
+export interface RepositoryInfo {
+  id: string;
+  name: string;
+  path: string;
+  branch: string;
+  description: string;
+  techStack: string;
+  badge: string;
+  badgeColor: string;
+  recommendedPreset: string;
+}
+
+export interface RunRecord {
+  id: string;
+  timestamp: number;
+  task: string;
+  repoName: string;
+  repoPath: string;
+  branch: string;
+  status: 'completed' | 'failed';
+  finalAnswer: string;
+  eventsCount: number;
+  durationSeconds: number;
+  toolsUsed: string[];
+  recoveryAttempts: number;
+  rawEvents: BackendEvent[];
+}
+
+export interface AppSettings {
+  model: string;
+  maxSteps: number;
+  autoFallback: boolean;
+}
+
+export const WORKSPACE_REPOS: RepositoryInfo[] = [
+  {
+    id: 'root',
+    name: 'RepoPilot (Workspace)',
+    path: '.',
+    branch: 'main',
+    description: 'Main workspace root containing AgentCore cognitive loop, tool registry, Gemini LLM failover, and FastAPI backend.',
+    techStack: 'Python / FastAPI / React / Vite',
+    badge: 'WORKSPACE',
+    badgeColor: '#287FEA',
+    recommendedPreset: 'Run python -m pytest tests/test_agent.py using shell_tool and verify that all 10 unit tests pass.',
+  },
+  {
+    id: 'broken-python',
+    name: 'broken-python (Calc Bug)',
+    path: 'demo/projects/broken-python',
+    branch: 'main',
+    description: 'E-commerce discount calculation service with arithmetic discount error in calc.py (returns 81.0 instead of 80.0).',
+    techStack: 'Python / pytest',
+    badge: 'REAL BUG',
+    badgeColor: '#FF9500',
+    recommendedPreset: 'Run pytest on demo/projects/broken-python/tests/test_calc.py using shell_tool. When test_calculate_discount fails, inspect demo/projects/broken-python/calc.py using file_tool, diagnose the root cause of why it returns 81.0 instead of 80.0, and provide the exact code fix.',
+  },
+  {
+    id: 'broken-login',
+    name: 'broken-login (Auth 403)',
+    path: 'demo/projects/broken-login',
+    branch: 'main',
+    description: 'User authentication microservice where case comparison ("ACTIVE" vs "active") causes 403 Forbidden on valid user login.',
+    techStack: 'Python / FastAPI / pytest',
+    badge: 'SECURITY',
+    badgeColor: '#FF3B30',
+    recommendedPreset: "In demo/projects/broken-login/auth.py, the login() function returns 403 Forbidden in tests/test_auth.py because user['status'] is compared with 'ACTIVE' instead of 'active'. Fix line 51 in auth.py using shell_tool and verify with pytest tests/test_auth.py.",
+  },
+  {
+    id: 'broken-api',
+    name: 'broken-api (REST API)',
+    path: 'demo/projects/broken-api',
+    branch: 'main',
+    description: 'Microservice repository with REST API endpoints, routing logic, and integration test coverage.',
+    techStack: 'Python / REST / FastAPI',
+    badge: 'MICROSERVICE',
+    badgeColor: '#BF5AF2',
+    recommendedPreset: 'Inspect backend/main.py and backend/api/routes.py using file_tool and explain the available endpoints.',
+  },
+];
+
+export const WORKSPACE_BRANCHES = ['main', 'fix/repopilot-core', 'feature/autonomous-agent', 'dev'];
+
 const STATUS_COLOR: Record<TraceStep['status'], string> = {
   done: '#F5F5F7',
   active: '#287FEA',
@@ -33,6 +117,24 @@ const STATUS_COLOR: Record<TraceStep['status'], string> = {
   reason: '#BF5AF2',
   success: '#52D123',
 };
+
+/**
+ * Safely format any string, number, dictionary or raw object into a clean displayable string.
+ * Completely eliminates any "[object Object]" artifacts in the UI.
+ */
+export function formatPayload(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (typeof val === 'object') {
+    try {
+      return JSON.stringify(val, null, 2);
+    } catch {
+      return String(val);
+    }
+  }
+  return String(val);
+}
 
 /**
  * Maps real backend events into the visual TraceStep format used by Figma UI.
@@ -48,7 +150,7 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
         icon: '✓',
         text: 'Plan synthesized',
         toolName: 'AGENT CORE',
-        detail: evt.message || 'Execution strategy synthesized',
+        detail: formatPayload(evt.message || 'Execution strategy synthesized'),
         status: 'done',
       };
     }
@@ -56,18 +158,7 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
     // 2. Tool invocation initiated by AgentCore
     if (eventType === 'tool_call') {
       const toolName = evt.tool ? evt.tool.toUpperCase() : 'TOOL';
-      let argsString = '';
-      if (evt.arguments) {
-        if (typeof evt.arguments === 'object') {
-          try {
-            argsString = JSON.stringify(evt.arguments);
-          } catch {
-            argsString = String(evt.arguments);
-          }
-        } else {
-          argsString = String(evt.arguments);
-        }
-      }
+      const argsString = evt.arguments ? formatPayload(evt.arguments) : '';
 
       return {
         id: idx,
@@ -75,7 +166,7 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
         text: `Executing ${evt.tool || 'tool'}`,
         toolName,
         query: argsString ? argsString.slice(0, 120) : undefined,
-        detail: evt.thought || evt.message || (argsString ? `Arguments: ${argsString}` : undefined),
+        detail: formatPayload(evt.thought || evt.message || (argsString ? `Arguments: ${argsString}` : undefined)),
         status: 'active',
       };
     }
@@ -84,7 +175,7 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
     if (eventType === 'tool_result') {
       const isErr = evt.status === 'error' || Boolean(evt.error);
       const toolName = evt.tool ? evt.tool.toUpperCase() : 'TOOL';
-      const detailContent = isErr
+      const detailRaw = isErr
         ? (evt.error || evt.data || evt.message || 'Tool encountered an error.')
         : (evt.data || evt.message || 'Tool executed successfully.');
 
@@ -93,7 +184,7 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
         icon: isErr ? '⚠' : '✓',
         text: isErr ? `${toolName} execution error` : `${toolName} completed`,
         toolName,
-        detail: detailContent,
+        detail: formatPayload(detailRaw),
         status: isErr ? 'fail' : 'done',
       };
     }
@@ -105,7 +196,7 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
         icon: '↻',
         text: 'Replanning alternate strategy',
         toolName: 'REASONING ENGINE',
-        detail: evt.message || 'Adaptive reflection incorporated into reasoning loop.',
+        detail: formatPayload(evt.message || 'Adaptive reflection incorporated into reasoning loop.'),
         status: 'reason',
       };
     }
@@ -117,7 +208,7 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
         icon: '✓',
         text: 'Verification confirmed',
         toolName: 'VERIFIER',
-        detail: evt.summary || evt.message || 'Task completed.',
+        detail: formatPayload(evt.summary || evt.message || 'Task completed.'),
         status: 'success',
       };
     }
@@ -129,7 +220,7 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
         icon: '✕',
         text: 'Execution failed',
         toolName: 'AGENT CORE',
-        detail: evt.message || evt.error || 'Encountered execution error.',
+        detail: formatPayload(evt.message || evt.error || 'Encountered execution error.'),
         status: 'fail',
       };
     }
@@ -138,9 +229,9 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
     return {
       id: idx,
       icon: evt.status === 'error' ? '⚠' : '✓',
-      text: evt.message || `Step ${evt.step || idx + 1}`,
+      text: formatPayload(evt.message || `Step ${evt.step || idx + 1}`),
       toolName: (evt.tool || 'AGENT').toUpperCase(),
-      detail: evt.detail || evt.message || evt.data,
+      detail: formatPayload(evt.detail || evt.message || evt.data),
       status: evt.status === 'error' ? 'fail' : 'done',
     };
   });
@@ -150,16 +241,26 @@ function mapBackendEventsToTraceSteps(events: BackendEvent[]): TraceStep[] {
    Left Sidebar: Apple Dark Glass
 ───────────────────────────────────────────────────────── */
 const NAV_ITEMS = [
-  { icon: '⊕', label: 'New Task', id: 'new' },
-  { icon: '⬡', label: 'Workspace', id: 'ws', active: true },
-  { icon: '▶', label: 'Runs', id: 'runs' },
-  { icon: '◇', label: 'Repositories', id: 'repos' },
-  { icon: '⚙', label: 'Settings', id: 'set' },
+  { icon: '⊕', label: 'New Task', id: 'new' as TabId },
+  { icon: '⬡', label: 'Workspace', id: 'ws' as TabId },
+  { icon: '▶', label: 'Runs', id: 'runs' as TabId },
+  { icon: '◇', label: 'Repositories', id: 'repos' as TabId },
+  { icon: '⚙', label: 'Settings', id: 'set' as TabId },
 ];
 
-function Sidebar({ onBack }: { onBack: () => void }) {
-  const [activeId, setActiveId] = useState('ws');
-
+function Sidebar({
+  activeTab,
+  onSelectTab,
+  onBack,
+  runsCount = 0,
+  backendConnected = true,
+}: {
+  activeTab: TabId;
+  onSelectTab: (tab: TabId) => void;
+  onBack: () => void;
+  runsCount?: number;
+  backendConnected?: boolean;
+}) {
   return (
     <aside
       className="hidden md:flex flex-col glass rounded-3xl mx-4 my-4 shrink-0 select-none border border-white/10"
@@ -185,13 +286,13 @@ function Sidebar({ onBack }: { onBack: () => void }) {
       {/* Navigation Links */}
       <nav className="flex flex-col gap-1.5 flex-1">
         {NAV_ITEMS.map(item => {
-          const isSelected = activeId === item.id;
+          const isSelected = activeTab === item.id;
           return (
             <button
               key={item.id}
               type="button"
               data-hover
-              onClick={() => setActiveId(item.id)}
+              onClick={() => onSelectTab(item.id)}
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all duration-150 cursor-pointer ${
                 isSelected
                   ? 'bg-white/15 text-white font-semibold shadow-inner'
@@ -200,7 +301,14 @@ function Sidebar({ onBack }: { onBack: () => void }) {
             >
               <span className="text-sm">{item.icon}</span>
               <span className="text-xs">{item.label}</span>
-              {isSelected && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white" />}
+              {item.id === 'runs' && runsCount > 0 && (
+                <span className="ml-auto text-[9px] mono px-1.5 py-0.2 rounded-full bg-white/10 text-white/80 font-bold">
+                  {runsCount}
+                </span>
+              )}
+              {isSelected && item.id !== 'runs' && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white" />
+              )}
             </button>
           );
         })}
@@ -208,10 +316,18 @@ function Sidebar({ onBack }: { onBack: () => void }) {
 
       {/* Environment Footnote */}
       <div className="px-3 pt-4 border-t border-white/10 flex items-center gap-2.5">
-        <div className="w-2 h-2 rounded-full bg-[#52D123] shadow-[0_0_8px_#52D123]" />
+        <div
+          className="w-2 h-2 rounded-full shadow-[0_0_8px]"
+          style={{
+            backgroundColor: backendConnected ? '#52D123' : '#FF453A',
+            boxShadow: `0 0 8px ${backendConnected ? '#52D123' : '#FF453A'}`,
+          }}
+        />
         <div>
           <div className="text-xs font-bold text-white">Apple Sandbox</div>
-          <div className="text-[9px] mono text-[#86868B]">backend: connected</div>
+          <div className="text-[9px] mono text-[#86868B]">
+            {backendConnected ? 'backend: connected' : 'backend: offline'}
+          </div>
         </div>
       </div>
     </aside>
@@ -224,9 +340,13 @@ function Sidebar({ onBack }: { onBack: () => void }) {
 function RunPanel({
   phase,
   telemetry,
+  repoName = 'RepoPilot (Workspace)',
+  branch = 'main',
 }: {
   phase: Phase;
   telemetry: RunTelemetry | null;
+  repoName?: string;
+  branch?: string;
 }) {
   const isComplete = phase === 'complete';
   const isRunning = phase === 'running';
@@ -295,8 +415,8 @@ function RunPanel({
         {/* Grouped metrics */}
         <div className="space-y-3">
           {[
-            { label: 'REPOSITORY', value: 'RepoPilot (Workspace)', mono: false },
-            { label: 'BRANCH', value: 'main', mono: true },
+            { label: 'REPOSITORY', value: repoName, mono: false },
+            { label: 'BRANCH', value: branch, mono: true },
             { label: 'EVENTS', value: stepsDisplay, mono: false },
             { label: 'DURATION', value: durationDisplay, mono: true },
             { label: 'TOOLS', value: toolsDisplay, mono: false },
@@ -306,7 +426,7 @@ function RunPanel({
               <div className="mono text-[9px] tracking-widest text-[#86868B] font-semibold mb-0.5">
                 {r.label}
               </div>
-              <div className={`text-xs font-semibold text-white ${r.mono ? 'mono' : ''}`}>
+              <div className={`text-xs font-semibold text-white truncate ${r.mono ? 'mono' : ''}`} title={r.value}>
                 {r.value}
               </div>
             </div>
@@ -353,16 +473,15 @@ const VERIFIED_PRESETS = [
     badgeColor: '#FF3B30',
     desc: 'Diagnoses 403 Forbidden login failure in tests/test_auth.py, patches auth.py, and verifies',
     task: "In demo/projects/broken-login/auth.py, the login() function returns 403 Forbidden in tests/test_auth.py because user['status'] is compared with 'ACTIVE' instead of 'active'. Fix line 51 in auth.py using shell_tool and verify with pytest tests/test_auth.py.",
+    repoId: 'broken-login',
   },
-
-
   {
     label: '🔍 Diagnose & Fix Bug',
     badge: 'REAL BUG',
     badgeColor: '#FF9500',
     desc: 'Reproduces pytest failure in broken-python, inspects calc.py, and provides the exact code fix',
-
     task: 'Run pytest on demo/projects/broken-python/tests/test_calc.py using shell_tool. When test_calculate_discount fails, inspect demo/projects/broken-python/calc.py using file_tool, diagnose the root cause of why it returns 81.0 instead of 80.0, and provide the exact code fix.',
+    repoId: 'broken-python',
   },
   {
     label: '🧪 Run Unit Tests',
@@ -370,6 +489,7 @@ const VERIFIED_PRESETS = [
     badgeColor: '#52D123',
     desc: 'Runs test_agent.py and verifies 100% test assertions pass',
     task: 'Run python -m pytest tests/test_agent.py using shell_tool and verify that all 10 unit tests pass.',
+    repoId: 'root',
   },
   {
     label: '📖 Inspect Architecture',
@@ -377,6 +497,7 @@ const VERIFIED_PRESETS = [
     badgeColor: '#287FEA',
     desc: 'Reads README.md and summarizes AgentCore tools & cognitive loop',
     task: "Read README.md using file_tool and summarize RepoPilot's architecture and available tools.",
+    repoId: 'root',
   },
   {
     label: '⚡ Inspect Backend API',
@@ -384,6 +505,7 @@ const VERIFIED_PRESETS = [
     badgeColor: '#BF5AF2',
     desc: 'Inspects main.py and routes.py and explains all API endpoints',
     task: 'Inspect backend/main.py and backend/api/routes.py using file_tool and explain the available endpoints.',
+    repoId: 'root',
   },
   {
     label: '✍️ Custom Task (Clear Box)',
@@ -391,9 +513,9 @@ const VERIFIED_PRESETS = [
     badgeColor: '#86868B',
     desc: 'Clear input box to type any custom prompt for your repository',
     task: '',
+    repoId: 'root',
   },
 ];
-
 
 /* ─────────────────────────────────────────────────────────
    Composer View
@@ -404,13 +526,41 @@ function ComposeView({
   onRun,
   errorMessage,
   onClearError,
+  selectedRepo,
+  onSelectRepo,
+  selectedBranch,
+  onSelectBranch,
+  reposList,
 }: {
   text: string;
   onTextChange: (val: string) => void;
   onRun: () => void;
   errorMessage: string | null;
   onClearError: () => void;
+  selectedRepo: RepositoryInfo;
+  onSelectRepo: (repo: RepositoryInfo) => void;
+  selectedBranch: string;
+  onSelectBranch: (branch: string) => void;
+  reposList: RepositoryInfo[];
 }) {
+  const [repoDropdownOpen, setRepoDropdownOpen] = useState(false);
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
+  const repoRef = useRef<HTMLDivElement | null>(null);
+  const branchRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (repoRef.current && !repoRef.current.contains(e.target as Node)) {
+        setRepoDropdownOpen(false);
+      }
+      if (branchRef.current && !branchRef.current.contains(e.target as Node)) {
+        setBranchDropdownOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => window.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col justify-center py-6 px-2">
       <div className="max-w-2xl mx-auto w-full">
@@ -476,32 +626,116 @@ function ComposeView({
           />
 
           <div className="border-t border-white/10 pt-5 mt-3">
-            {/* Repo & Branch */}
+            {/* Interactive Repo & Branch Dropdowns */}
             <div className="flex gap-4 mb-5 flex-wrap">
-              <div className="flex-1 min-w-[140px]">
+              {/* Repository Dropdown */}
+              <div className="flex-1 min-w-[170px] relative" ref={repoRef}>
                 <label className="mono text-[9px] tracking-widest text-[#86868B] block mb-1.5 font-semibold">
                   REPOSITORY
                 </label>
-                <div className="bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 flex items-center justify-between cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[#86868B] text-xs">⎇</span>
-                    <span className="text-xs font-semibold text-white">RepoPilot (Workspace)</span>
+                <div
+                  onClick={() => {
+                    setRepoDropdownOpen(prev => !prev);
+                    setBranchDropdownOpen(false);
+                  }}
+                  className={`bg-white/5 border rounded-xl px-3.5 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${
+                    repoDropdownOpen ? 'border-white/30 bg-white/10' : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <span className="text-[#86868B] text-xs shrink-0">⎇</span>
+                    <span className="text-xs font-semibold text-white truncate">{selectedRepo.name}</span>
                   </div>
-                  <span className="text-[#86868B] text-xs">▾</span>
+                  <span className="text-[#86868B] text-xs ml-2 shrink-0">{repoDropdownOpen ? '▴' : '▾'}</span>
                 </div>
+
+                {repoDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-2 bg-[#121214]/95 backdrop-blur-xl border border-white/15 rounded-2xl p-2 shadow-2xl z-50 animate-step-in max-h-64 overflow-y-auto">
+                    <div className="px-2.5 py-1.5 mono text-[9px] text-[#86868B] uppercase font-bold tracking-wider">
+                      Select Target Repository
+                    </div>
+                    {reposList.map(repo => {
+                      const isChosen = repo.id === selectedRepo.id;
+                      return (
+                        <div
+                          key={repo.id}
+                          onClick={() => {
+                            onSelectRepo(repo);
+                            setRepoDropdownOpen(false);
+                          }}
+                          className={`p-2.5 rounded-xl cursor-pointer transition-all flex items-center justify-between ${
+                            isChosen ? 'bg-white/15 text-white' : 'hover:bg-white/5 text-[#86868B] hover:text-white'
+                          }`}
+                        >
+                          <div className="overflow-hidden">
+                            <div className="text-xs font-semibold text-white truncate">{repo.name}</div>
+                            <div className="mono text-[10px] text-[#86868B] truncate">{repo.path}</div>
+                          </div>
+                          <span
+                            className="mono text-[8px] px-1.5 py-0.5 rounded uppercase font-bold shrink-0 ml-2"
+                            style={{
+                              backgroundColor: `${repo.badgeColor}20`,
+                              color: repo.badgeColor,
+                            }}
+                          >
+                            {repo.badge}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              <div className="flex-1 min-w-[140px]">
+              {/* Branch Dropdown */}
+              <div className="flex-1 min-w-[140px] relative" ref={branchRef}>
                 <label className="mono text-[9px] tracking-widest text-[#86868B] block mb-1.5 font-semibold">
                   BRANCH
                 </label>
-                <div className="bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 flex items-center justify-between cursor-pointer">
+                <div
+                  onClick={() => {
+                    setBranchDropdownOpen(prev => !prev);
+                    setRepoDropdownOpen(false);
+                  }}
+                  className={`bg-white/5 border rounded-xl px-3.5 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${
+                    branchDropdownOpen ? 'border-white/30 bg-white/10' : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
                   <div className="flex items-center gap-2">
                     <span className="text-[#52D123] text-xs">●</span>
-                    <span className="text-xs font-semibold text-white">main</span>
+                    <span className="text-xs font-semibold text-white mono">{selectedBranch}</span>
                   </div>
-                  <span className="text-[#86868B] text-xs">▾</span>
+                  <span className="text-[#86868B] text-xs">{branchDropdownOpen ? '▴' : '▾'}</span>
                 </div>
+
+                {branchDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-2 bg-[#121214]/95 backdrop-blur-xl border border-white/15 rounded-2xl p-2 shadow-2xl z-50 animate-step-in">
+                    <div className="px-2.5 py-1.5 mono text-[9px] text-[#86868B] uppercase font-bold tracking-wider">
+                      Select Branch
+                    </div>
+                    {WORKSPACE_BRANCHES.map(branch => {
+                      const isChosen = branch === selectedBranch;
+                      return (
+                        <div
+                          key={branch}
+                          onClick={() => {
+                            onSelectBranch(branch);
+                            setBranchDropdownOpen(false);
+                          }}
+                          className={`p-2.5 rounded-xl cursor-pointer transition-all flex items-center justify-between ${
+                            isChosen ? 'bg-white/15 text-white' : 'hover:bg-white/5 text-[#86868B] hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#52D123] text-xs">●</span>
+                            <span className="text-xs font-semibold mono">{branch}</span>
+                          </div>
+                          {isChosen && <span className="text-white text-xs">✓</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -532,7 +766,13 @@ function ComposeView({
                   key={a.label}
                   type="button"
                   data-hover
-                  onClick={() => onTextChange(a.task)}
+                  onClick={() => {
+                    onTextChange(a.task);
+                    if (a.repoId) {
+                      const matchedRepo = reposList.find(r => r.id === a.repoId);
+                      if (matchedRepo) onSelectRepo(matchedRepo);
+                    }
+                  }}
                   className={`p-3.5 rounded-2xl border text-left transition-all duration-150 cursor-pointer flex flex-col justify-between ${
                     isSelected
                       ? 'bg-white/15 border-white/40 shadow-lg'
@@ -893,6 +1133,484 @@ function CompleteView({
   );
 }
 
+/* ─────────────────────────────────────────────────────────
+   Runs View: Historical Execution Records
+───────────────────────────────────────────────────────── */
+function RunsView({
+  runs,
+  onInspectRun,
+  onRerunTask,
+  onClearRuns,
+  onStartNew,
+}: {
+  runs: RunRecord[];
+  onInspectRun: (run: RunRecord) => void;
+  onRerunTask: (run: RunRecord) => void;
+  onClearRuns: () => void;
+  onStartNew: () => void;
+}) {
+  return (
+    <div className="flex-1 flex flex-col py-6 px-2 gap-5 max-w-4xl mx-auto w-full">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="mono text-[10px] tracking-widest text-[#86868B] font-bold uppercase">
+              HISTORY & TELEMETRY
+            </span>
+            <span className="mono text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-bold">
+              {runs.length} {runs.length === 1 ? 'Run' : 'Runs'}
+            </span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+            Execution Runs
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {runs.length > 0 && (
+            <button
+              type="button"
+              data-hover
+              onClick={onClearRuns}
+              className="text-xs text-[#86868B] hover:text-[#FF453A] border border-white/10 hover:border-[#FF453A]/30 px-3 py-1.5 rounded-xl transition-colors cursor-pointer mono"
+            >
+              Clear History
+            </button>
+          )}
+          <button
+            type="button"
+            data-hover
+            onClick={onStartNew}
+            className="bg-white text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-white/90 transition-all cursor-pointer shadow-md"
+          >
+            + New Investigation
+          </button>
+        </div>
+      </div>
+
+      {/* Runs List or Empty State */}
+      {runs.length === 0 ? (
+        <div className="glass rounded-3xl p-12 text-center border border-white/10 mt-8">
+          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 mx-auto flex items-center justify-center text-xl text-[#86868B] mb-4">
+            ▶
+          </div>
+          <h3 className="text-lg font-bold text-white mb-2">No Execution Runs Yet</h3>
+          <p className="text-sm text-[#86868B] max-w-md mx-auto mb-6">
+            Execute any prompt or verified task preset from the Workspace tab. All tool interactions, thoughts, and verification proofs will appear here.
+          </p>
+          <button
+            type="button"
+            data-hover
+            onClick={onStartNew}
+            className="bg-white text-black px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-white/90 transition-all cursor-pointer shadow-lg"
+          >
+            Start First Investigation →
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-220px)] pr-1">
+          {runs.map(run => {
+            const isOk = run.status === 'completed';
+            const color = isOk ? '#52D123' : '#FF453A';
+            const formattedDate = new Date(run.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            });
+
+            return (
+              <div
+                key={run.id}
+                className="glass rounded-2xl p-5 border border-white/10 hover:border-white/25 transition-all shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4"
+              >
+                {/* Left: Status, Prompt, Repo */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <span
+                      className="mono text-[9px] px-2 py-0.5 rounded-full font-bold uppercase"
+                      style={{
+                        backgroundColor: `${color}20`,
+                        color: color,
+                      }}
+                    >
+                      {isOk ? 'VERIFIED' : 'FAILED'}
+                    </span>
+                    <span className="mono text-[10px] text-[#86868B]">{formattedDate}</span>
+                    <span className="mono text-[10px] text-white/50">⎇ {run.repoName}</span>
+                    <span className="mono text-[10px] text-[#52D123]">● {run.branch}</span>
+                  </div>
+
+                  <div className="text-sm font-semibold text-white truncate mb-1" title={run.task}>
+                    {run.task}
+                  </div>
+
+                  <div className="text-xs text-[#86868B] line-clamp-1 mono">
+                    {run.finalAnswer || 'No summary answer recorded.'}
+                  </div>
+                </div>
+
+                {/* Middle: Quick Metrics */}
+                <div className="flex items-center gap-4 text-xs shrink-0 py-2 px-3 rounded-xl bg-white/5 border border-white/10">
+                  <div>
+                    <div className="mono text-[9px] text-[#86868B] uppercase font-semibold">Duration</div>
+                    <div className="font-bold text-white mono">{run.durationSeconds}s</div>
+                  </div>
+                  <div className="w-px h-6 bg-white/10" />
+                  <div>
+                    <div className="mono text-[9px] text-[#86868B] uppercase font-semibold">Events</div>
+                    <div className="font-bold text-white mono">{run.eventsCount}</div>
+                  </div>
+                  <div className="w-px h-6 bg-white/10" />
+                  <div>
+                    <div className="mono text-[9px] text-[#86868B] uppercase font-semibold">Tools</div>
+                    <div className="font-bold text-white mono">{run.toolsUsed.length || 0}</div>
+                  </div>
+                </div>
+
+                {/* Right: Actions */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    data-hover
+                    onClick={() => onInspectRun(run)}
+                    className="bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                  >
+                    Inspect Trace →
+                  </button>
+                  <button
+                    type="button"
+                    data-hover
+                    onClick={() => onRerunTask(run)}
+                    className="bg-white text-black px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-white/90 transition-all cursor-pointer shadow"
+                    title="Load task into workspace"
+                  >
+                    Re-run
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   Repositories View: Workspace Manager
+───────────────────────────────────────────────────────── */
+function RepositoriesView({
+  repos,
+  selectedRepo,
+  onSelectRepo,
+  onInvestigateRepo,
+}: {
+  repos: RepositoryInfo[];
+  selectedRepo: RepositoryInfo;
+  onSelectRepo: (repo: RepositoryInfo) => void;
+  onInvestigateRepo: (repo: RepositoryInfo) => void;
+}) {
+  return (
+    <div className="flex-1 flex flex-col py-6 px-2 gap-5 max-w-4xl mx-auto w-full">
+      {/* Header */}
+      <div className="pb-4 border-b border-white/10">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="mono text-[10px] tracking-widest text-[#86868B] font-bold uppercase">
+            ENVIRONMENT DIRECTORY
+          </span>
+          <span className="mono text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-bold">
+            {repos.length} Target Repos
+          </span>
+        </div>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+          Workspace Repositories
+        </h1>
+        <p className="text-sm text-[#86868B] mt-1">
+          Select the active repository environment for autonomous tool execution, file reading, code patching, and test verification.
+        </p>
+      </div>
+
+      {/* Repositories Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {repos.map(repo => {
+          const isSelected = repo.id === selectedRepo.id;
+
+          return (
+            <div
+              key={repo.id}
+              className={`glass rounded-3xl p-6 border transition-all flex flex-col justify-between ${
+                isSelected
+                  ? 'border-white/40 shadow-xl bg-white/10'
+                  : 'border-white/10 hover:border-white/25 hover:bg-white/5'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span
+                    className="mono text-[9px] px-2.5 py-0.8 rounded-full font-bold uppercase"
+                    style={{
+                      backgroundColor: `${repo.badgeColor}20`,
+                      color: repo.badgeColor,
+                    }}
+                  >
+                    {repo.badge}
+                  </span>
+                  <span className="mono text-[10px] text-[#52D123] font-semibold">● {repo.branch}</span>
+                </div>
+
+                <h3 className="text-lg font-bold text-white tracking-tight mb-1">
+                  {repo.name}
+                </h3>
+                <div className="mono text-[10px] text-[#86868B] mb-3 truncate" title={repo.path}>
+                  path: {repo.path}
+                </div>
+
+                <p className="text-xs text-[#86868B] leading-relaxed mb-4">
+                  {repo.description}
+                </p>
+
+                <div className="flex items-center gap-2 mono text-[10px] text-white/70 mb-5">
+                  <span className="text-[#86868B]">Stack:</span>
+                  <span className="bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                    {repo.techStack}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10 flex items-center gap-3">
+                <button
+                  type="button"
+                  data-hover
+                  onClick={() => onSelectRepo(repo)}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-white/20 text-white cursor-default'
+                      : 'bg-white/5 hover:bg-white/15 text-white border border-white/10'
+                  }`}
+                >
+                  {isSelected ? '✓ Active Target' : 'Set as Target'}
+                </button>
+                <button
+                  type="button"
+                  data-hover
+                  onClick={() => onInvestigateRepo(repo)}
+                  className="bg-white text-black py-2.5 px-4 rounded-xl text-xs font-bold hover:bg-white/90 transition-all cursor-pointer shadow-md"
+                  title="Load sample bug fix task into workspace"
+                >
+                  Investigate →
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   Settings View: Runtime & Model Preferences
+───────────────────────────────────────────────────────── */
+function SettingsView({
+  settings,
+  onUpdateSettings,
+  backendConnected,
+}: {
+  settings: AppSettings;
+  onUpdateSettings: (newSettings: AppSettings) => void;
+  backendConnected: boolean;
+}) {
+  const [model, setModel] = useState(settings.model);
+  const [maxSteps, setMaxSteps] = useState(settings.maxSteps);
+  const [autoFallback, setAutoFallback] = useState(settings.autoFallback);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [savedToast, setSavedToast] = useState(false);
+
+  const handleSave = (newModel = model, newSteps = maxSteps, newFallback = autoFallback) => {
+    const updated: AppSettings = {
+      model: newModel,
+      maxSteps: newSteps,
+      autoFallback: newFallback,
+    };
+    onUpdateSettings(updated);
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 2000);
+  };
+
+  const handleTestHealth = async () => {
+    setTesting(true);
+    setTestResult(null);
+    const start = Date.now();
+    try {
+      const res = await checkBackendHealth();
+      const elapsed = Date.now() - start;
+      if (res.ok) {
+        setTestResult(`Online (${elapsed}ms) - service: ${res.data?.service || 'repopilot-backend'}`);
+      } else {
+        setTestResult(`Offline - ${res.error}`);
+      }
+    } catch (err: any) {
+      setTestResult(`Error: ${err?.message || 'Connection failed'}`);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col py-6 px-2 gap-5 max-w-3xl mx-auto w-full">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <div>
+          <div className="mono text-[10px] tracking-widest text-[#86868B] font-bold uppercase mb-1">
+            CONFIGURATION
+          </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+            Runtime & Model Settings
+          </h1>
+        </div>
+
+        {savedToast && (
+          <span className="mono text-xs text-[#52D123] bg-[#52D123]/15 border border-[#52D123]/30 px-3 py-1 rounded-full font-bold animate-step-in">
+            ✓ Preferences Saved
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        {/* Model Selection */}
+        <div className="glass rounded-3xl p-6 border border-white/10">
+          <label className="mono text-[10px] tracking-widest text-[#86868B] uppercase font-bold block mb-2">
+            PRIMARY LLM ENGINE
+          </label>
+          <p className="text-xs text-[#86868B] mb-4">
+            Select the primary Gemini model for reasoning loops. If rate limits (429) occur, RepoPilot cascades to fallback models automatically.
+          </p>
+
+          <select
+            value={model}
+            onChange={e => {
+              const val = e.target.value;
+              setModel(val);
+              handleSave(val, maxSteps, autoFallback);
+            }}
+            className="w-full bg-[#1C1C1E] border border-white/15 rounded-xl px-4 py-3 text-white text-xs font-medium outline-none cursor-pointer"
+          >
+            <option value="gemini-3.6-flash">gemini-3.6-flash (Recommended, High Fidelity)</option>
+            <option value="gemini-flash-latest">gemini-flash-latest (Fastest Rolling Release)</option>
+            <option value="gemini-3.5-flash">gemini-3.5-flash (Stable Fallback)</option>
+            <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Lightweight)</option>
+          </select>
+        </div>
+
+        {/* Max Steps Slider */}
+        <div className="glass rounded-3xl p-6 border border-white/10">
+          <div className="flex items-center justify-between mb-2">
+            <label className="mono text-[10px] tracking-widest text-[#86868B] uppercase font-bold">
+              MAX COGNITIVE STEPS
+            </label>
+            <span className="mono text-xs font-bold text-white px-2 py-0.5 rounded-md bg-white/10">
+              {maxSteps} iterations
+            </span>
+          </div>
+          <p className="text-xs text-[#86868B] mb-4">
+            Safety threshold limiting the maximum PLAN → ACT → OBSERVE → REFLECT iterations per run.
+          </p>
+
+          <input
+            type="range"
+            min="5"
+            max="30"
+            step="1"
+            value={maxSteps}
+            onChange={e => {
+              const val = Number(e.target.value);
+              setMaxSteps(val);
+              handleSave(model, val, autoFallback);
+            }}
+            className="w-full accent-white cursor-pointer"
+          />
+          <div className="flex justify-between text-[10px] mono text-[#86868B] mt-2">
+            <span>5 steps (Fast checks)</span>
+            <span>15 (Balanced default)</span>
+            <span>30 (Deep complex reasoning)</span>
+          </div>
+        </div>
+
+        {/* Autonomous Offline Fallback */}
+        <div className="glass rounded-3xl p-6 border border-white/10 flex items-center justify-between gap-4">
+          <div>
+            <div className="mono text-[10px] tracking-widest text-[#86868B] uppercase font-bold mb-1">
+              AUTONOMOUS HEURISTIC FALLBACK
+            </div>
+            <p className="text-xs text-[#86868B]">
+              Allow the system to synthesize verified heuristic code patches if all external Gemini endpoints exhaust quota.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            data-hover
+            onClick={() => {
+              const val = !autoFallback;
+              setAutoFallback(val);
+              handleSave(model, maxSteps, val);
+            }}
+            className={`w-12 h-6 rounded-full transition-colors p-1 cursor-pointer flex items-center shrink-0 ${
+              autoFallback ? 'bg-[#52D123]' : 'bg-white/10'
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                autoFallback ? 'translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Backend Health Check */}
+        <div className="glass rounded-3xl p-6 border border-white/10">
+          <div className="flex items-center justify-between mb-2">
+            <label className="mono text-[10px] tracking-widest text-[#86868B] uppercase font-bold">
+              BACKEND CONNECTIVITY DIAGNOSTIC
+            </label>
+            <span
+              className="mono text-[9px] px-2 py-0.5 rounded-full font-bold uppercase"
+              style={{
+                backgroundColor: backendConnected ? '#52D12320' : '#FF453A20',
+                color: backendConnected ? '#52D123' : '#FF453A',
+              }}
+            >
+              {backendConnected ? 'ONLINE' : 'OFFLINE'}
+            </span>
+          </div>
+          <p className="text-xs text-[#86868B] mb-4">
+            Live ping probe testing the FastAPI backend server (/health) running on port 8000.
+          </p>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              data-hover
+              onClick={handleTestHealth}
+              disabled={testing}
+              className="bg-white text-black px-4 py-2 rounded-xl text-xs font-bold hover:bg-white/90 transition-all cursor-pointer shadow-md disabled:opacity-50"
+            >
+              {testing ? 'Testing...' : 'Test Connection Now'}
+            </button>
+            {testResult && (
+              <span className="mono text-xs text-white/80 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl">
+                {testResult}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const DEFAULT_TASK =
   'Run python -m pytest tests/test_agent.py using shell_tool and verify that all 10 unit tests pass.';
 
@@ -909,6 +1627,7 @@ export default function Demo({
   mouseY?: number;
   activeColor?: ColorTheme;
 }) {
+  const [activeTab, setActiveTab] = useState<TabId>('ws');
   const [phase, setPhase] = useState<Phase>('compose');
   const [text, setText] = useState(
     initialTask !== undefined && initialTask !== '' ? initialTask : DEFAULT_TASK
@@ -918,11 +1637,103 @@ export default function Demo({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [runTelemetry, setRunTelemetry] = useState<RunTelemetry | null>(null);
 
+  // Repositories state
+  const [selectedRepo, setSelectedRepo] = useState<RepositoryInfo>(() => {
+    try {
+      const saved = localStorage.getItem('repopilot_selected_repo');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const match = WORKSPACE_REPOS.find(r => r.id === parsed.id);
+        if (match) return match;
+      }
+    } catch {}
+    return WORKSPACE_REPOS[0];
+  });
+
+  const [selectedBranch, setSelectedBranch] = useState<string>(() => {
+    return localStorage.getItem('repopilot_selected_branch') || 'main';
+  });
+
+  // Runs History state (persisted)
+  const [runsHistory, setRunsHistory] = useState<RunRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('repopilot_runs_history');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  // Settings state (persisted)
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    try {
+      const saved = localStorage.getItem('repopilot_settings');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      model: 'gemini-3.6-flash',
+      maxSteps: 15,
+      autoFallback: true,
+    };
+  });
+
+  const [backendConnected, setBackendConnected] = useState(true);
+
+  // Poll backend health on initial load
+  useEffect(() => {
+    checkBackendHealth().then(res => {
+      setBackendConnected(res.ok);
+    });
+  }, []);
+
+  // Update initialTask if provided
   useEffect(() => {
     if (initialTask !== undefined && initialTask !== '') {
       setText(initialTask);
     }
   }, [initialTask]);
+
+  // Persist selected repo and branch
+  const handleSelectRepo = (repo: RepositoryInfo) => {
+    setSelectedRepo(repo);
+    try {
+      localStorage.setItem('repopilot_selected_repo', JSON.stringify({ id: repo.id, name: repo.name }));
+    } catch {}
+  };
+
+  const handleSelectBranch = (branch: string) => {
+    setSelectedBranch(branch);
+    try {
+      localStorage.setItem('repopilot_selected_branch', branch);
+    } catch {}
+  };
+
+  const handleUpdateSettings = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    try {
+      localStorage.setItem('repopilot_settings', JSON.stringify(newSettings));
+    } catch {}
+  };
+
+  const handleClearRuns = () => {
+    setRunsHistory([]);
+    try {
+      localStorage.removeItem('repopilot_runs_history');
+    } catch {}
+  };
+
+  /**
+   * Handles sidebar navigation tabs
+   */
+  const handleSelectTab = (tab: TabId) => {
+    if (tab === 'new') {
+      setText('');
+      setPhase('compose');
+      setActiveTab('ws');
+      setErrorMessage(null);
+      return;
+    }
+    setActiveTab(tab);
+  };
 
   /**
    * Executes the real task on the RepoPilot FastAPI backend.
@@ -936,13 +1747,14 @@ export default function Demo({
 
     setErrorMessage(null);
     setPhase('running');
+    setActiveTab('ws');
     setVisibleSteps([
       {
         id: 0,
         icon: '●',
         text: 'Connecting to RepoPilot AgentCore…',
         toolName: 'AGENT CORE',
-        detail: 'Dispatching task to backend via FastAPI (/api/agent/run)…',
+        detail: `Dispatching task in ${selectedRepo.name} (${selectedRepo.path}) to backend…`,
         status: 'active',
       },
     ]);
@@ -952,7 +1764,12 @@ export default function Demo({
 
     try {
       // Execute the task via the Vite-proxied FastAPI backend endpoint
-      const response = await runAgentTask({ task: trimmed });
+      const response = await runAgentTask({
+        task: trimmed,
+        target_repo_path: selectedRepo.path === '.' ? null : selectedRepo.path,
+        max_steps: settings.maxSteps || 15,
+      });
+
       const elapsed = Math.max(1, Math.round((Date.now() - startTime) / 1000));
       const backendSteps = mapBackendEventsToTraceSteps(response.events || []);
 
@@ -982,6 +1799,31 @@ export default function Demo({
 
       setRunTelemetry(telemetry);
 
+      // Record this run in persistent history
+      const newRunRecord: RunRecord = {
+        id: `run-${Date.now()}`,
+        timestamp: Date.now(),
+        task: trimmed,
+        repoName: selectedRepo.name,
+        repoPath: selectedRepo.path,
+        branch: selectedBranch,
+        status: telemetry.status,
+        finalAnswer: telemetry.finalAnswer,
+        eventsCount: telemetry.eventsCount,
+        durationSeconds: telemetry.durationSeconds,
+        toolsUsed: telemetry.toolsUsed,
+        recoveryAttempts: telemetry.recoveryAttempts,
+        rawEvents: telemetry.rawEvents,
+      };
+
+      setRunsHistory(prev => {
+        const next = [newRunRecord, ...prev.slice(0, 49)];
+        try {
+          localStorage.setItem('repopilot_runs_history', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
       // Sequentially display steps so the user sees the real events stream into the UI
       if (backendSteps.length === 0) {
         setVisibleSteps([
@@ -1008,7 +1850,6 @@ export default function Demo({
     } catch (err: any) {
       const errMsg = err?.message || 'Unknown backend execution error occurred.';
       setErrorMessage(errMsg);
-      // Return to compose view to allow the user to retry while preserving the prompt
       setPhase('compose');
     }
   };
@@ -1020,10 +1861,49 @@ export default function Demo({
     setErrorMessage(null);
   };
 
+  // Inspect a past run in the complete view
+  const handleInspectRun = (run: RunRecord) => {
+    setRunTelemetry({
+      status: run.status,
+      finalAnswer: run.finalAnswer,
+      eventsCount: run.eventsCount,
+      durationSeconds: run.durationSeconds,
+      toolsUsed: run.toolsUsed,
+      recoveryAttempts: run.recoveryAttempts,
+      rawEvents: run.rawEvents,
+    });
+    setPhase('complete');
+    setActiveTab('ws');
+  };
+
+  // Re-run a past task
+  const handleRerunTask = (run: RunRecord) => {
+    setText(run.task);
+    const match = WORKSPACE_REPOS.find(r => r.path === run.repoPath);
+    if (match) setSelectedRepo(match);
+    setSelectedBranch(run.branch || 'main');
+    setPhase('compose');
+    setActiveTab('ws');
+  };
+
+  // Investigate a repository from the Repositories tab
+  const handleInvestigateRepo = (repo: RepositoryInfo) => {
+    setSelectedRepo(repo);
+    setText(repo.recommendedPreset);
+    setPhase('compose');
+    setActiveTab('ws');
+  };
+
   return (
     <div className="min-h-screen flex text-[#F5F5F7]">
       {/* Left Sidebar */}
-      <Sidebar onBack={onBack} />
+      <Sidebar
+        activeTab={activeTab}
+        onSelectTab={handleSelectTab}
+        onBack={onBack}
+        runsCount={runsHistory.length}
+        backendConnected={backendConnected}
+      />
 
       {/* Dominant Center Workspace */}
       <main className="flex-1 flex flex-col min-w-0">
@@ -1040,12 +1920,26 @@ export default function Demo({
             </button>
             <div className="h-4 w-px bg-white/10" />
             <span className="text-xs font-bold text-white tracking-tight uppercase mono">
-              Workspace / RepoPilot
+              {activeTab === 'ws' && `Workspace / ${selectedRepo.name}`}
+              {activeTab === 'runs' && 'Runs / Execution History'}
+              {activeTab === 'repos' && 'Repositories / Workspace Targets'}
+              {activeTab === 'set' && 'Settings / Engine Preferences'}
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            {phase === 'running' && (
+            {activeTab !== 'ws' && (
+              <button
+                type="button"
+                data-hover
+                onClick={() => setActiveTab('ws')}
+                className="mono text-[10px] text-white/70 hover:text-white border border-white/10 hover:border-white/30 px-3 py-1 rounded-full transition-colors cursor-pointer"
+              >
+                ← Return to Workspace
+              </button>
+            )}
+
+            {activeTab === 'ws' && phase === 'running' && (
               <div className="flex items-center gap-2 bg-[#287FEA]/15 border border-[#287FEA]/30 rounded-full px-3 py-1">
                 <span className="status-dot bg-[#287FEA] animate-node-pulse" />
                 <span className="mono text-[10px] tracking-widest text-[#287FEA] font-bold">
@@ -1053,7 +1947,7 @@ export default function Demo({
                 </span>
               </div>
             )}
-            {phase === 'complete' && (
+            {activeTab === 'ws' && phase === 'complete' && (
               <div
                 className="flex items-center gap-2 rounded-full px-3 py-1"
                 style={{
@@ -1089,27 +1983,78 @@ export default function Demo({
           </div>
         </div>
 
-        {/* Workspace Content + Right Context */}
+        {/* Dynamic Views based on activeTab */}
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 flex flex-col overflow-y-auto px-4 md:px-8">
-            {phase === 'compose' && (
-              <ComposeView
-                text={text}
-                onTextChange={setText}
-                onRun={handleRun}
-                errorMessage={errorMessage}
-                onClearError={() => setErrorMessage(null)}
+            {/* WORKSPACE TAB */}
+            {activeTab === 'ws' && (
+              <>
+                {phase === 'compose' && (
+                  <ComposeView
+                    text={text}
+                    onTextChange={setText}
+                    onRun={handleRun}
+                    errorMessage={errorMessage}
+                    onClearError={() => setErrorMessage(null)}
+                    selectedRepo={selectedRepo}
+                    onSelectRepo={handleSelectRepo}
+                    selectedBranch={selectedBranch}
+                    onSelectBranch={handleSelectBranch}
+                    reposList={WORKSPACE_REPOS}
+                  />
+                )}
+                {phase === 'running' && (
+                  <RunningView steps={visibleSteps} currentStep={currentStep} />
+                )}
+                {phase === 'complete' && (
+                  <CompleteView onReset={reset} telemetry={runTelemetry} />
+                )}
+              </>
+            )}
+
+            {/* RUNS TAB */}
+            {activeTab === 'runs' && (
+              <RunsView
+                runs={runsHistory}
+                onInspectRun={handleInspectRun}
+                onRerunTask={handleRerunTask}
+                onClearRuns={handleClearRuns}
+                onStartNew={() => {
+                  setPhase('compose');
+                  setActiveTab('ws');
+                }}
               />
             )}
-            {phase === 'running' && (
-              <RunningView steps={visibleSteps} currentStep={currentStep} />
+
+            {/* REPOSITORIES TAB */}
+            {activeTab === 'repos' && (
+              <RepositoriesView
+                repos={WORKSPACE_REPOS}
+                selectedRepo={selectedRepo}
+                onSelectRepo={handleSelectRepo}
+                onInvestigateRepo={handleInvestigateRepo}
+              />
             )}
-            {phase === 'complete' && (
-              <CompleteView onReset={reset} telemetry={runTelemetry} />
+
+            {/* SETTINGS TAB */}
+            {activeTab === 'set' && (
+              <SettingsView
+                settings={settings}
+                onUpdateSettings={handleUpdateSettings}
+                backendConnected={backendConnected}
+              />
             )}
           </div>
 
-          <RunPanel phase={phase} telemetry={runTelemetry} />
+          {/* Right Context Telemetry Panel (shown during Workspace tab) */}
+          {activeTab === 'ws' && (
+            <RunPanel
+              phase={phase}
+              telemetry={runTelemetry}
+              repoName={selectedRepo.name}
+              branch={selectedBranch}
+            />
+          )}
         </div>
       </main>
     </div>
