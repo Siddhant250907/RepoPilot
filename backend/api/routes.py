@@ -35,7 +35,7 @@ class ResilientLLM(LLMInterface):
     FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-3.5-flash-lite"]
 
     async def generate(self, *args, **kwargs):
-        last_err = None
+        last_err: Optional[Exception] = None
         models_to_try = [self.model] + [m for m in self.FALLBACK_MODELS if m != self.model]
         for m in models_to_try:
             self.model = m
@@ -50,8 +50,7 @@ class ResilientLLM(LLMInterface):
                 raise
         if last_err is not None:
             raise last_err
-        raise RuntimeError("All candidate LLM models failed to generate a response.")
-
+        raise RuntimeError("All candidate models failed")
 
 
 @router.post("/agent/run", response_model=AgentRunResponse, tags=["Agent"])
@@ -86,8 +85,9 @@ async def run_agent(request: AgentRunRequest):
         planner=planner,
         registry=registry,
         event_bus=event_bus,
-        max_iterations=request.max_steps or 10,
+        max_iterations=request.max_steps or 15,
     )
+
 
     try:
         result = await agent.execute_task(request.task)

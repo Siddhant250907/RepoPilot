@@ -48,8 +48,9 @@ export interface HealthResponse {
 export async function runAgentTask({
   task,
   target_repo_path = null,
-  max_steps = 10,
+  max_steps = 15,
 }: AgentRunParams): Promise<AgentRunResponse> {
+
   const trimmedTask = task?.trim();
   if (!trimmedTask) {
     throw new Error('Task description cannot be empty.');

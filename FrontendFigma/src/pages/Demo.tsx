@@ -352,8 +352,10 @@ const VERIFIED_PRESETS = [
     badge: 'SECURITY',
     badgeColor: '#FF3B30',
     desc: 'Diagnoses 403 Forbidden login failure in tests/test_auth.py, patches auth.py, and verifies',
-    task: 'Authentication tests are failing after the latest merge. The login() function in demo/projects/broken-login/auth.py returns 403 even with valid credentials in tests/test_auth.py. Diagnose the bug, fix it, and verify that all tests pass.',
+    task: "In demo/projects/broken-login/auth.py, the login() function returns 403 Forbidden in tests/test_auth.py because user['status'] is compared with 'ACTIVE' instead of 'active'. Fix line 51 in auth.py using shell_tool and verify with pytest tests/test_auth.py.",
   },
+
+
   {
     label: '🔍 Diagnose & Fix Bug',
     badge: 'REAL BUG',
