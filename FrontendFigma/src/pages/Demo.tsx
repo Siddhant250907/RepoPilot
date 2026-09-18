@@ -348,6 +348,13 @@ function RunPanel({
 
 const VERIFIED_PRESETS = [
   {
+    label: '🔍 Diagnose & Fix Bug',
+    badge: 'REAL BUG',
+    badgeColor: '#FF9500',
+    desc: 'Reproduces pytest failure in broken-python, inspects calc.py, and provides the exact code fix',
+    task: 'Run pytest on demo/projects/broken-python/tests/test_calc.py using shell_tool. When test_calculate_discount fails, inspect demo/projects/broken-python/calc.py using file_tool, diagnose the root cause of why it returns 81.0 instead of 80.0, and provide the exact code fix.',
+  },
+  {
     label: '🧪 Run Unit Tests',
     badge: '10/10 PASS',
     badgeColor: '#52D123',
@@ -376,6 +383,7 @@ const VERIFIED_PRESETS = [
     task: '',
   },
 ];
+
 
 /* ─────────────────────────────────────────────────────────
    Composer View
