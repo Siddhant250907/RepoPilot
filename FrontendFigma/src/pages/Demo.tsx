@@ -346,6 +346,37 @@ function RunPanel({
   );
 }
 
+const VERIFIED_PRESETS = [
+  {
+    label: '🧪 Run Unit Tests',
+    badge: '10/10 PASS',
+    badgeColor: '#52D123',
+    desc: 'Runs test_agent.py and verifies 100% test assertions pass',
+    task: 'Run python -m pytest tests/test_agent.py using shell_tool and verify that all 10 unit tests pass.',
+  },
+  {
+    label: '📖 Inspect Architecture',
+    badge: 'DOCS',
+    badgeColor: '#287FEA',
+    desc: 'Reads README.md and summarizes AgentCore tools & cognitive loop',
+    task: "Read README.md using file_tool and summarize RepoPilot's architecture and available tools.",
+  },
+  {
+    label: '⚡ Inspect Backend API',
+    badge: 'FASTAPI',
+    badgeColor: '#BF5AF2',
+    desc: 'Inspects main.py and routes.py and explains all API endpoints',
+    task: 'Inspect backend/main.py and backend/api/routes.py using file_tool and explain the available endpoints.',
+  },
+  {
+    label: '✍️ Custom Task (Clear Box)',
+    badge: 'CUSTOM',
+    badgeColor: '#86868B',
+    desc: 'Clear input box to type any custom prompt for your repository',
+    task: '',
+  },
+];
+
 /* ─────────────────────────────────────────────────────────
    Composer View
 ───────────────────────────────────────────────────────── */
@@ -367,9 +398,22 @@ function ComposeView({
       <div className="max-w-2xl mx-auto w-full">
         {/* Dominant Headline */}
         <div className="mb-6">
-          <div className="inline-flex items-center gap-2 mono text-[10px] text-[#86868B] uppercase tracking-wider font-semibold mb-2">
-            <span className="status-dot bg-[#52D123]" />
-            Investigation Prompt
+          <div className="flex items-center justify-between mb-2">
+            <div className="inline-flex items-center gap-2 mono text-[10px] text-[#86868B] uppercase tracking-wider font-semibold">
+              <span className="status-dot bg-[#52D123]" />
+              Investigation Prompt
+            </div>
+            {text && (
+              <button
+                type="button"
+                data-hover
+                onClick={() => onTextChange('')}
+                className="text-xs text-[#86868B] hover:text-[#FF453A] mono transition-colors cursor-pointer flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-white/5"
+                title="Clear input to write your own custom task"
+              >
+                <span>✕</span> Clear for Custom Task
+              </button>
+            )}
           </div>
           <h1
             className="font-extrabold text-white tracking-tight mb-2"
@@ -378,7 +422,7 @@ function ComposeView({
             What should RepoPilot investigate?
           </h1>
           <p className="text-[#86868B] text-sm">
-            Describe a bug, failing test, exception, or unexpected behavior.
+            Type any custom debugging task below, or choose a verified passing task preset.
           </p>
         </div>
 
@@ -408,7 +452,7 @@ function ComposeView({
           <textarea
             className="w-full bg-transparent resize-none text-white text-sm leading-relaxed outline-none placeholder-[#515154] font-normal"
             style={{ minHeight: 120 }}
-            placeholder="Describe the bug or paste the failing stack trace..."
+            placeholder="Describe any custom bug, failing test, or question about this repository..."
             value={text}
             onChange={e => onTextChange(e.target.value)}
           />
@@ -456,20 +500,48 @@ function ComposeView({
         </TiltCard>
 
         {/* Quick Action Presets */}
-        <div className="flex flex-wrap gap-2">
-          {['Debug an Error', 'Run Tests', 'Investigate API', 'Explain Code'].map(a => (
-            <button
-              key={a}
-              type="button"
-              data-hover
-              onClick={() => {
-                onTextChange(`Execute automated ${a.toLowerCase()} on the active repository workspace.`);
-              }}
-              className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-3.5 py-2 text-xs font-medium text-[#86868B] hover:text-white transition-all duration-150 cursor-pointer"
-            >
-              {a}
-            </button>
-          ))}
+        <div className="mt-5">
+          <div className="flex items-center justify-between mono text-[10px] tracking-widest text-[#86868B] font-bold uppercase mb-2.5">
+            <span>Verified Task Presets</span>
+            <span className="text-white/40 normal-case font-normal text-[11px]">Click any preset to load</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {VERIFIED_PRESETS.map(a => {
+              const isSelected = a.task !== '' && text === a.task;
+              return (
+                <button
+                  key={a.label}
+                  type="button"
+                  data-hover
+                  onClick={() => onTextChange(a.task)}
+                  className={`p-3.5 rounded-2xl border text-left transition-all duration-150 cursor-pointer flex flex-col justify-between ${
+                    isSelected
+                      ? 'bg-white/15 border-white/40 shadow-lg'
+                      : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs font-bold text-white tracking-tight">
+                      {a.label}
+                    </span>
+                    <span
+                      className="mono text-[9px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0"
+                      style={{
+                        backgroundColor: `${a.badgeColor}20`,
+                        color: a.badgeColor,
+                      }}
+                    >
+                      {a.badge}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#86868B] line-clamp-1 mono">
+                    {a.desc}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -803,25 +875,36 @@ function CompleteView({
   );
 }
 
+const DEFAULT_TASK =
+  'Run python -m pytest tests/test_agent.py using shell_tool and verify that all 10 unit tests pass.';
+
 /* ─────────────────────────────────────────────────────────
    Main Export: Demo
 ───────────────────────────────────────────────────────── */
 export default function Demo({
   onBack,
+  initialTask,
 }: {
   onBack: () => void;
+  initialTask?: string;
   mouseX?: number;
   mouseY?: number;
   activeColor?: ColorTheme;
 }) {
   const [phase, setPhase] = useState<Phase>('compose');
   const [text, setText] = useState(
-    'Authentication tests are failing after the latest merge. The login() function returns 403 even with valid credentials in tests/test_auth.py.'
+    initialTask !== undefined && initialTask !== '' ? initialTask : DEFAULT_TASK
   );
   const [visibleSteps, setVisibleSteps] = useState<TraceStep[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [runTelemetry, setRunTelemetry] = useState<RunTelemetry | null>(null);
+
+  useEffect(() => {
+    if (initialTask !== undefined && initialTask !== '') {
+      setText(initialTask);
+    }
+  }, [initialTask]);
 
   /**
    * Executes the real task on the RepoPilot FastAPI backend.

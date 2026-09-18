@@ -6,6 +6,7 @@ import { ColorTheme } from './components/AppleHeroPedestal';
 
 export default function App() {
   const [page, setPage] = useState<'landing' | 'demo'>('landing');
+  const [initialTask, setInitialTask] = useState<string>('');
   const [activeColor, setActiveColor] = useState<ColorTheme>('blue');
   const [cursorActive, setCursorActive] = useState(false);
   const [lerpedCoords, setLerpedCoords] = useState({ x: 0, y: 0 });
@@ -91,7 +92,8 @@ export default function App() {
       <div key={page} className="relative z-10 page-container page-enter">
         {page === 'landing' ? (
           <Landing
-            onStartDemo={() => {
+            onStartDemo={(preset?: string) => {
+              if (preset !== undefined) setInitialTask(preset);
               window.scrollTo({ top: 0, behavior: 'smooth' });
               setPage('demo');
             }}
@@ -106,6 +108,7 @@ export default function App() {
               window.scrollTo({ top: 0, behavior: 'smooth' });
               setPage('landing');
             }}
+            initialTask={initialTask}
             mouseX={lerpedCoords.x}
             mouseY={lerpedCoords.y}
             activeColor={activeColor}

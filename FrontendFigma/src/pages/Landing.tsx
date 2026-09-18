@@ -6,7 +6,7 @@ import TiltCard from '../components/TiltCard';
 import TechnicalSurface from '../components/TechnicalSurface';
 
 interface LandingProps {
-  onStartDemo: () => void;
+  onStartDemo: (taskPreset?: string) => void;
   mouseX?: number;
   mouseY?: number;
   activeColor: ColorTheme;
@@ -16,7 +16,7 @@ interface LandingProps {
 /* ─────────────────────────────────────────────────────────
    Apple Studio Top Navbar
 ───────────────────────────────────────────────────────── */
-function Navbar({ compact, onStartDemo }: { compact: boolean; onStartDemo: () => void }) {
+function Navbar({ compact, onStartDemo }: { compact: boolean; onStartDemo: (taskPreset?: string) => void }) {
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 transition-all duration-300 pointer-events-none"
@@ -57,7 +57,7 @@ function Navbar({ compact, onStartDemo }: { compact: boolean; onStartDemo: () =>
           <button
             type="button"
             data-hover
-            onClick={onStartDemo}
+            onClick={() => onStartDemo()}
             className="bg-white text-black rounded-full text-xs font-bold px-4 py-1.5 hover:bg-white/90 transition-all duration-200 hover:scale-105 cursor-pointer shadow-md"
           >
             Start Debugging →
@@ -71,7 +71,7 @@ function Navbar({ compact, onStartDemo }: { compact: boolean; onStartDemo: () =>
 /* ─────────────────────────────────────────────────────────
    Product Composer Section (Dark Apple Studio Style)
 ───────────────────────────────────────────────────────── */
-function ProductComposerSection({ onStartDemo }: { onStartDemo: () => void }) {
+function ProductComposerSection({ onStartDemo }: { onStartDemo: (taskPreset?: string) => void }) {
   return (
     <section className="py-28 md:py-36 relative overflow-hidden" id="workspace">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
@@ -103,15 +103,15 @@ function ProductComposerSection({ onStartDemo }: { onStartDemo: () => void }) {
             {/* Input display */}
             <div className="bg-[#0D0D10] rounded-2xl p-5 mb-5 border border-white/10 shadow-inner">
               <p className="text-white/90 text-sm leading-relaxed font-normal">
-                Authentication tests are failing after the latest merge. The{' '}
+                Run automated test suite using{' '}
                 <code className="mono text-[#287FEA] text-xs bg-[#287FEA]/15 px-1.5 py-0.5 rounded font-semibold">
-                  login()
+                  shell_tool
                 </code>{' '}
-                function returns 403 Forbidden even with valid token claims in{' '}
-                <code className="mono text-[#86868B] text-xs bg-white/5 px-1.5 py-0.5 rounded">
-                  tests/test_auth.py
-                </code>
-                ...
+                on{' '}
+                <code className="mono text-[#52D123] text-xs bg-[#52D123]/15 px-1.5 py-0.5 rounded font-semibold">
+                  tests/test_agent.py
+                </code>{' '}
+                and verify 100% assertions pass...
               </p>
               <span className="animate-blink text-[#287FEA] text-sm font-bold">|</span>
             </div>
@@ -125,7 +125,7 @@ function ProductComposerSection({ onStartDemo }: { onStartDemo: () => void }) {
                 <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-[#86868B] text-xs">⎇</span>
-                    <span className="text-xs font-semibold text-white">broken-login</span>
+                    <span className="text-xs font-semibold text-white">RepoPilot (Workspace)</span>
                   </div>
                   <span className="text-[10px] mono text-[#86868B]">git</span>
                 </div>
@@ -149,7 +149,7 @@ function ProductComposerSection({ onStartDemo }: { onStartDemo: () => void }) {
             <button
               type="button"
               data-hover
-              onClick={onStartDemo}
+              onClick={() => onStartDemo('Run python -m pytest tests/test_agent.py using shell_tool and verify that all 10 unit tests pass.')}
               className="w-full bg-white text-black rounded-2xl py-4 font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/90 hover:scale-[1.01] transition-all duration-200 cursor-pointer shadow-xl"
             >
               Run Agent →
@@ -157,15 +157,20 @@ function ProductComposerSection({ onStartDemo }: { onStartDemo: () => void }) {
 
             {/* Quick Action Presets */}
             <div className="mt-5 flex flex-wrap gap-2">
-              {['Debug an Error', 'Run Tests', 'Investigate API', 'Explain Code'].map(a => (
+              {[
+                { label: '🧪 Run Unit Tests', task: 'Run python -m pytest tests/test_agent.py using shell_tool and verify that all 10 unit tests pass.' },
+                { label: '📖 Inspect README', task: 'Read README.md using file_tool and summarize RepoPilot\'s architecture.' },
+                { label: '⚡ Inspect Backend API', task: 'Inspect backend/main.py and backend/api/routes.py using file_tool and explain the API endpoints.' },
+                { label: '✍️ Custom Task', task: '' },
+              ].map(a => (
                 <button
-                  key={a}
+                  key={a.label}
                   type="button"
                   data-hover
-                  onClick={onStartDemo}
+                  onClick={() => onStartDemo(a.task)}
                   className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-3.5 py-1.5 text-xs font-medium text-[#86868B] hover:text-white transition-all cursor-pointer"
                 >
-                  {a}
+                  {a.label}
                 </button>
               ))}
             </div>
@@ -314,7 +319,7 @@ function FailureStorySection() {
 /* ─────────────────────────────────────────────────────────
    Verification / Final Proof Section
 ───────────────────────────────────────────────────────── */
-function VerificationSection({ onStartDemo }: { onStartDemo: () => void }) {
+function VerificationSection({ onStartDemo }: { onStartDemo: (taskPreset?: string) => void }) {
   return (
     <section className="py-28 md:py-36 relative">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
@@ -362,7 +367,7 @@ function VerificationSection({ onStartDemo }: { onStartDemo: () => void }) {
               <button
                 type="button"
                 data-hover
-                onClick={onStartDemo}
+                onClick={() => onStartDemo()}
                 className="bg-white text-black font-bold rounded-2xl flex items-center gap-3 px-7 py-3.5 hover:bg-white/90 transition-all duration-200 hover:scale-105 cursor-pointer shadow-xl"
               >
                 Start New Investigation →
@@ -405,7 +410,7 @@ function VerificationSection({ onStartDemo }: { onStartDemo: () => void }) {
                 <button
                   type="button"
                   data-hover
-                  onClick={onStartDemo}
+                  onClick={() => onStartDemo()}
                   className="flex-1 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#86868B] hover:text-white text-xs mono transition-colors"
                 >
                   Inspect Git Diff
@@ -413,7 +418,7 @@ function VerificationSection({ onStartDemo }: { onStartDemo: () => void }) {
                 <button
                   type="button"
                   data-hover
-                  onClick={onStartDemo}
+                  onClick={() => onStartDemo()}
                   className="flex-1 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#86868B] hover:text-white text-xs mono transition-colors"
                 >
                   View Execution Log
