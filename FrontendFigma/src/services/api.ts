@@ -79,12 +79,22 @@ export async function runAgentTask({
     const rawText = await response.text();
     responseData = rawText ? JSON.parse(rawText) : {};
   } catch {
+    if (response.status === 502 || response.status === 504) {
+      throw new Error(
+        `Backend server unreachable (HTTP ${response.status} Bad Gateway). Please make sure the FastAPI backend is running on port 8000: "python -m uvicorn backend.main:app --port 8000".`
+      );
+    }
     throw new Error(
-      `Invalid JSON response received from backend (HTTP ${response.status} ${response.statusText}).`
+      `Invalid response received from backend (HTTP ${response.status} ${response.statusText}).`
     );
   }
 
   if (!response.ok) {
+    if (response.status === 502 || response.status === 504) {
+      throw new Error(
+        `Backend server unreachable (HTTP ${response.status} Bad Gateway). Please make sure the FastAPI backend is running on port 8000: "python -m uvicorn backend.main:app --port 8000".`
+      );
+    }
     const errorDetail =
       responseData?.detail ||
       responseData?.message ||
