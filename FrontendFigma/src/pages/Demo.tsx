@@ -348,10 +348,18 @@ function RunPanel({
 
 const VERIFIED_PRESETS = [
   {
+    label: '🔐 Fix 403 Auth Bug',
+    badge: 'SECURITY',
+    badgeColor: '#FF3B30',
+    desc: 'Diagnoses 403 Forbidden login failure in tests/test_auth.py, patches auth.py, and verifies',
+    task: 'Authentication tests are failing after the latest merge. The login() function in demo/projects/broken-login/auth.py returns 403 even with valid credentials in tests/test_auth.py. Diagnose the bug, fix it, and verify that all tests pass.',
+  },
+  {
     label: '🔍 Diagnose & Fix Bug',
     badge: 'REAL BUG',
     badgeColor: '#FF9500',
     desc: 'Reproduces pytest failure in broken-python, inspects calc.py, and provides the exact code fix',
+
     task: 'Run pytest on demo/projects/broken-python/tests/test_calc.py using shell_tool. When test_calculate_discount fails, inspect demo/projects/broken-python/calc.py using file_tool, diagnose the root cause of why it returns 81.0 instead of 80.0, and provide the exact code fix.',
   },
   {
